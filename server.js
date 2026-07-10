@@ -28,6 +28,20 @@ function readJson(req) {
   });
 }
 
+function readBuffer(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let length = 0;
+    req.on("data", chunk => {
+      chunks.push(chunk);
+      length += chunk.length;
+      if (length > 2_000_000_000) req.destroy();
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function run(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args);
@@ -40,8 +54,13 @@ function run(command, args) {
 }
 
 function safeOutputName(name) {
-  const clean = path.basename(name || "captioned.mp4").replace(/[^\w .()가-힣-]/g, "_");
+  const clean = path.basename(name || "video-annotated.mp4").replace(/[^\w .()가-힣-]/g, "_");
   return clean.toLowerCase().endsWith(".mp4") ? clean : `${clean}.mp4`;
+}
+
+function safeVideoName(name) {
+  const clean = path.basename(decodeURIComponent(name || "video.mp4")).replace(/[^\w .()가-힣-]/g, "_");
+  return /\.(mp4|mov|m4v)$/i.test(clean) ? clean : `${clean}.mp4`;
 }
 
 function escapeFilterPath(filePath) {
@@ -88,9 +107,15 @@ async function getVideoWidth(videoPath) {
   return Number.isFinite(width) && width > 0 ? width : 1280;
 }
 
-async function makeCaptionImages(entries, workDir, width) {
+function normalizeCaptionStyle(style) {
+  const fill = style && style.fill === "#ffffff" ? "white" : "black";
+  const stroke = style && style.stroke === "#000000" ? "black" : "white";
+  return { fill, stroke };
+}
+
+async function makeCaptionImages(entries, workDir, width, captionStyle) {
   const jsonPath = path.join(workDir, "captions.json");
-  fs.writeFileSync(jsonPath, JSON.stringify({ width, entries }), "utf8");
+  fs.writeFileSync(jsonPath, JSON.stringify({ width, entries, captionStyle }), "utf8");
   const output = await run(PYTHON, [path.join(ROOT, "render_captions.py"), jsonPath, workDir]);
   return JSON.parse(output);
 }
@@ -127,8 +152,21 @@ async function pickVideo(res) {
   send(res, 200, { path: selected });
 }
 
+async function uploadVideo(req, res) {
+  const buffer = await readBuffer(req);
+  if (!buffer.length) return send(res, 400, { error: "영상 파일이 비어 있습니다." });
+
+  const videosDir = path.join(ROOT, "videos");
+  fs.mkdirSync(videosDir, { recursive: true });
+
+  const parsed = path.parse(safeVideoName(req.headers["x-file-name"]));
+  const outputPath = path.join(videosDir, `${parsed.name}-${Date.now()}${parsed.ext.toLowerCase()}`);
+  fs.writeFileSync(outputPath, buffer);
+  send(res, 200, { path: outputPath });
+}
+
 async function render(req, res) {
-  const { videoPath, outputName, srt } = await readJson(req);
+  const { videoPath, outputName, srt, captionStyle } = await readJson(req);
   if (!videoPath || !fs.existsSync(videoPath)) return send(res, 400, { error: "영상 경로를 찾을 수 없습니다." });
   if (!srt || !srt.trim()) return send(res, 400, { error: "자막 내용이 비어 있습니다." });
 
@@ -142,15 +180,20 @@ async function render(req, res) {
 
   const entries = parseSrt(srt);
   const width = await getVideoWidth(videoPath);
-  const images = await makeCaptionImages(entries, workDir, width);
+  const images = await makeCaptionImages(entries, workDir, width, normalizeCaptionStyle(captionStyle));
   const args = ["-y", "-i", videoPath];
   images.forEach(image => args.push("-loop", "1", "-i", image.path));
 
   let input = "[0:v]";
   const filters = images.map((image, index) => {
+    const caption = `[cap${index}]`;
     const output = index === images.length - 1 ? "[vout]" : `[v${index + 1}]`;
+    const fadeOutStart = Math.max(image.start, image.end - 0.12);
     const enable = `between(t\\,${image.start}\\,${image.end})`;
-    const filter = `${input}[${index + 1}:v]overlay=x=0:y=H-h-32:shortest=1:enable='${enable}'${output}`;
+    const filter = [
+      `[${index + 1}:v]format=rgba,fade=t=in:st=${image.start}:d=0.12:alpha=1,fade=t=out:st=${fadeOutStart}:d=0.12:alpha=1${caption}`,
+      `${input}${caption}overlay=x=0:y=H-h-32:shortest=1:enable='${enable}'${output}`
+    ].join(";");
     input = output;
     return filter;
   }).join(";");
@@ -182,6 +225,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/video") return streamVideo(req, res, url.searchParams.get("path"));
     if (req.method === "POST" && url.pathname === "/pick-video") return await pickVideo(res);
+    if (req.method === "POST" && url.pathname === "/upload-video") return await uploadVideo(req, res);
     if (req.method === "POST" && url.pathname === "/render") return await render(req, res);
     send(res, 404, { error: "Not found" });
   } catch (error) {

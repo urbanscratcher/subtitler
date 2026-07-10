@@ -1,31 +1,46 @@
-# Subtitler
+# Video Notes
 
-로컬 영상에 타임코드 기반 자막을 입히는 작은 웹 도구입니다.
+An opinionated local tool for turning timestamped notes into a shareable annotated video.
 
-## 로컬 실행
+```txt
+Drop Video
+Write Notes
+Preview
+Export
+Share
+```
+
+## Run
 
 ```sh
 npm run start
 ```
 
-브라우저에서 `http://127.0.0.1:5173`을 엽니다.
+Open `http://127.0.0.1:5173`.
 
-## Docker 실행
+## Notes
+
+```txt
+default: 1
+
+3.2 Button doesn't work.
+4 Please change this.
+6 2 Looks strange.
+```
+
+`time text` uses the default duration.
+
+`time duration text` uses an explicit duration.
+
+Use `default: next` to keep each note visible until the next note starts.
+
+## Docker
 
 ```sh
 mkdir -p videos
 docker compose up --build
 ```
 
-브라우저에서 `http://127.0.0.1:5175`를 엽니다.
+Open `http://127.0.0.1:5175`.
 
-Docker에서는 macOS 파일 선택창을 사용할 수 없으므로, 영상 파일을 `videos` 폴더에 넣고 화면의 영상 경로에 `/videos/파일명.mp4`처럼 입력합니다. 결과 영상도 같은 `videos` 폴더에 생성됩니다.
-
-## 자막 입력 형식
-
-```txt
-00:01.5 | 3 | 로그인 버튼 클릭
-00:05.0 | 3 | 저장 버튼 클릭
-```
-
-두 번째 값은 기본 표시 시간입니다. 다음 자막이 먼저 시작하면 이전 자막은 다음 자막 시작 시점에서 자동으로 사라집니다.
+In Docker, place videos in `videos` and use paths like `/videos/input.mp4`.

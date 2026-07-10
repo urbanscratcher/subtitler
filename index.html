@@ -3,179 +3,290 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>영상 자막 합치기</title>
+  <title>Video Notes</title>
   <style>
+    @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
     * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --ink: #111111;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --soft: #f7f7f5;
+      --panel: #ffffff;
+      --caption-fill: #000000;
+      --caption-stroke: #ffffff;
+    }
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f5f7fa;
-      color: #1f2937;
+      min-height: 100vh;
+      font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--soft);
+      color: var(--ink);
+      font-weight: 700;
+      letter-spacing: 0;
     }
-    main { width: min(1280px, calc(100vw - 32px)); margin: 0 auto; padding: 28px 0; }
-    header, .row, .layout { display: flex; gap: 12px; }
-    header { align-items: end; justify-content: space-between; margin-bottom: 16px; }
-    h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: 0; }
-    p { margin: 0; color: #667085; line-height: 1.5; }
+    main {
+      width: min(720px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 40px 0;
+    }
+    header { margin-bottom: 22px; }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 44px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+    .stack { display: grid; gap: 14px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .video-shell {
+      position: relative;
+      background: #090909;
+      aspect-ratio: 16 / 9;
+      display: grid;
+      place-items: center;
+    }
+    video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #090909;
+    }
+    .drop {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      text-align: center;
+      background: #fbfbfa;
+      color: var(--ink);
+      border: 1px dashed #c9c9c3;
+      transition: background 160ms ease, border-color 160ms ease;
+    }
+    .drop strong { display: block; font-size: 18px; }
+    .drop span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .drop.dragging {
+      background: #ffffff;
+      border-color: #111111;
+    }
+    .drop.hidden { display: none; }
+    .caption-preview {
+      position: absolute;
+      left: 5%;
+      right: 5%;
+      bottom: 8%;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 120ms linear;
+      color: var(--caption-fill);
+      -webkit-text-stroke: clamp(2px, .35vw, 5px) var(--caption-stroke);
+      paint-order: stroke fill;
+      font-size: clamp(26px, 4.2vw, 58px);
+      line-height: 1.12;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .caption-preview.visible { opacity: 1; }
+    .body { display: grid; gap: 12px; padding: 16px; }
+    textarea, input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--ink);
+      font: 600 15px/1.6 CommitMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0;
+      outline: none;
+    }
+    textarea {
+      min-height: 230px;
+      padding: 14px;
+      resize: vertical;
+    }
+    input { min-height: 38px; padding: 8px 10px; }
+    textarea:focus, input:focus { border-color: #111111; }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .row.between { justify-content: space-between; }
+    label { color: var(--muted); font-size: 13px; }
+    .path-label { flex: 1 1 280px; }
+    .choice {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .choice input { width: auto; min-height: 0; accent-color: #111111; }
     button {
       border: 0;
       border-radius: 6px;
-      background: #1769aa;
-      color: white;
-      min-height: 38px;
-      padding: 0 13px;
-      font-weight: 700;
+      min-height: 42px;
+      padding: 0 18px;
+      background: #111111;
+      color: #ffffff;
+      font: 700 14px/1 Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       cursor: pointer;
       white-space: nowrap;
     }
-    button.secondary { background: #475467; }
-    button.danger { background: #b42318; }
-    button:hover { filter: brightness(.92); }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    .layout { align-items: start; }
-    .left { flex: 1.15 1 0; min-width: 0; }
-    .right { flex: .85 1 420px; min-width: 360px; }
-    section {
-      background: white;
-      border: 1px solid #d7dce3;
-      border-radius: 8px;
-      box-shadow: 0 12px 36px rgba(16, 24, 40, .08);
-      overflow: hidden;
+    button.secondary {
+      background: #ffffff;
+      color: #111111;
+      border: 1px solid var(--line);
     }
-    section + section { margin-top: 12px; }
-    .head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 13px 15px;
-      border-bottom: 1px solid #d7dce3;
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .status {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
     }
-    h2 { margin: 0; font-size: 15px; letter-spacing: 0; }
-    .body { display: grid; gap: 12px; padding: 15px; }
-    label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: #344054; }
-    input, textarea, pre {
-      width: 100%;
-      border: 1px solid #d7dce3;
-      border-radius: 6px;
-      background: #fbfcfe;
-      color: #1f2937;
-      font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-    input { min-height: 38px; padding: 8px 10px; }
-    textarea { min-height: 280px; padding: 12px; resize: vertical; }
-    pre { min-height: 142px; margin: 0; padding: 12px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
-    video { display: block; width: 100%; max-height: 58vh; background: #101828; }
-    .status { min-height: 20px; font-size: 13px; color: #667085; }
     .status.error { color: #b42318; }
-    .grow { flex: 1; }
-    .compact { max-width: 120px; }
-    @media (max-width: 900px) {
-      header, .layout { display: block; }
-      header .row { margin-top: 12px; flex-wrap: wrap; }
-      .right { min-width: 0; margin-top: 12px; }
+    .status.done { color: #067647; }
+    @media (max-width: 560px) {
+      main { width: min(100vw - 20px, 720px); padding: 18px 0; }
+      .body { padding: 12px; }
+      textarea { min-height: 190px; }
+      button { width: 100%; }
+      .row { align-items: stretch; }
     }
   </style>
 </head>
 <body>
   <main>
     <header>
-      <div>
-        <h1>영상 자막 합치기</h1>
-        <p>영상을 고르고 플레이어의 현재 시간으로 자막 줄을 추가한 뒤, ffmpeg으로 영상 옆에 결과 파일을 만듭니다.</p>
-      </div>
-      <div class="row">
-        <button id="render">ffmpeg 합치기</button>
-        <button class="secondary" id="downloadSrt">SRT 저장</button>
-      </div>
+      <h1>Video Notes</h1>
+      <p>Drop a video, write timestamped notes, export a shareable MP4.</p>
     </header>
 
-    <div class="layout">
-      <div class="left">
-        <section>
-          <div class="head">
-            <h2>영상</h2>
-            <span class="status" id="status"></span>
-          </div>
+    <div class="stack">
+      <section class="panel">
+        <div class="video-shell" id="dropZone">
           <video id="player" controls></video>
-          <div class="body">
-            <div class="row">
-              <button id="pick">영상 선택</button>
-              <label class="grow">영상 경로
-                <input id="videoPath" placeholder="/Users/me/Desktop/input.mp4" />
-              </label>
-            </div>
-            <div class="row">
-              <label class="compact">기본 지속초
-                <input id="duration" type="number" min="0.5" step="0.5" value="3" />
-              </label>
-              <label class="grow">자막 문구
-                <input id="captionText" placeholder="여기에 자막을 쓰고 Enter" />
-              </label>
-              <button id="insert">＋ 현재 시간</button>
+          <div class="caption-preview" id="captionPreview"></div>
+          <div class="drop" id="drop">
+            <div>
+              <strong>Drop MP4 or MOV</strong>
+              <span>or click to choose a video</span>
             </div>
           </div>
-        </section>
-      </div>
-
-      <div class="right">
-        <section>
-          <div class="head"><h2>자막 입력</h2></div>
-          <div class="body">
-            <textarea id="source" spellcheck="false" placeholder="00:01.5 | 3 | 로그인 버튼 클릭"></textarea>
-          </div>
-        </section>
-
-        <section>
-          <div class="head"><h2>출력</h2></div>
-          <div class="body">
-            <label>결과 파일명
-              <input id="outputName" value="captioned.mp4" />
-            </label>
-            <label>SRT 미리보기
-              <pre id="srt"></pre>
-            </label>
-            <label>ffmpeg 로그
-              <pre id="log"></pre>
+        </div>
+        <div class="body">
+          <div class="row">
+            <button class="secondary" id="pick">Choose Video</button>
+            <label class="path-label">Path
+              <input id="videoPath" placeholder="/Users/me/Desktop/video.mp4" />
             </label>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="body">
+          <label>Notes</label>
+          <textarea id="source" spellcheck="false">3.2 Button doesn't work.
+4 Please change this.
+6 2 Looks strange.</textarea>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="body">
+          <div class="row between">
+            <div class="row" role="radiogroup" aria-label="Default duration">
+              <label class="choice"><input type="radio" name="defaultMode" value="1" checked /> 1 second</label>
+              <label class="choice"><input type="radio" name="defaultMode" value="next" /> Until next note</label>
+            </div>
+            <div class="row" role="radiogroup" aria-label="Caption style">
+              <label class="choice"><input type="radio" name="captionStyle" value="black" checked /> Black / White</label>
+              <label class="choice"><input type="radio" name="captionStyle" value="white" /> White / Black</label>
+            </div>
+            <button id="render">Export</button>
+          </div>
+          <div class="status" id="status"></div>
+        </div>
+      </section>
     </div>
   </main>
 
   <script>
     const $ = selector => document.querySelector(selector);
+    const $$ = selector => [...document.querySelectorAll(selector)];
     const els = {
-      player: $("#player"), pick: $("#pick"), videoPath: $("#videoPath"), duration: $("#duration"),
-      captionText: $("#captionText"), insert: $("#insert"), source: $("#source"), outputName: $("#outputName"),
-      srt: $("#srt"), log: $("#log"), status: $("#status"), render: $("#render"), downloadSrt: $("#downloadSrt")
+      player: $("#player"),
+      dropZone: $("#dropZone"),
+      drop: $("#drop"),
+      captionPreview: $("#captionPreview"),
+      pick: $("#pick"),
+      videoPath: $("#videoPath"),
+      source: $("#source"),
+      render: $("#render"),
+      status: $("#status")
     };
+    let annotations = [];
+    let srt = "";
+    const fallbackDuration = 1;
 
-    function setStatus(message, isError = false) {
+    function setStatus(message, tone = "") {
       els.status.textContent = message;
-      els.status.classList.toggle("error", isError);
+      els.status.className = `status ${tone}`.trim();
     }
 
-    function formatInputTime(seconds) {
-      const total = Math.max(0, Math.round(seconds * 10) / 10);
-      const m = Math.floor(total / 60);
-      const s = (total % 60).toFixed(1).padStart(4, "0");
-      return `${String(m).padStart(2, "0")}:${s}`;
+    function selectedDefault() {
+      return document.querySelector("input[name='defaultMode']:checked").value;
+    }
+
+    function selectedCaptionStyle() {
+      return document.querySelector("input[name='captionStyle']:checked").value === "white"
+        ? { fill: "#ffffff", stroke: "#000000" }
+        : { fill: "#000000", stroke: "#ffffff" };
+    }
+
+    function updateCaptionStyle() {
+      const style = selectedCaptionStyle();
+      document.documentElement.style.setProperty("--caption-fill", style.fill);
+      document.documentElement.style.setProperty("--caption-stroke", style.stroke);
     }
 
     function parseTime(value) {
-      const match = value.trim().match(/^(?:(\d{1,2}):)?(\d{1,2})(?:\.(\d{1,3}))?$/);
-      if (!match) throw new Error(`시간 형식 오류: ${value}`);
-      const minutes = Number(match[1] || 0);
-      const seconds = Number(match[2]);
-      const millis = Number((match[3] || "0").padEnd(3, "0"));
-      if (seconds >= 60) throw new Error(`초는 60보다 작아야 합니다: ${value}`);
-      return (minutes * 60 + seconds) * 1000 + millis;
+      const clean = value.trim();
+      const clock = clean.match(/^(?:(\d{1,2}):)?(\d{1,2})(?:\.(\d{1,3}))?$/);
+      if (!clock) throw new Error(`Invalid time: ${value}`);
+      const minutes = Number(clock[1] || 0);
+      const seconds = Number(clock[2]);
+      const millis = Number((clock[3] || "0").padEnd(3, "0"));
+      if (seconds >= 60 && clock[1]) throw new Error(`Invalid seconds: ${value}`);
+      return minutes * 60 + seconds + millis / 1000;
     }
 
-    function formatSrtTime(ms) {
-      const total = Math.max(0, Math.round(ms));
+    function formatSrtTime(seconds) {
+      const total = Math.max(0, Math.round(seconds * 1000));
       const h = Math.floor(total / 3600000);
       const m = Math.floor((total % 3600000) / 60000);
       const s = Math.floor((total % 60000) / 1000);
@@ -183,113 +294,162 @@
       return [h, m, s].map(n => String(n).padStart(2, "0")).join(":") + "," + String(z).padStart(3, "0");
     }
 
-    function buildSrt() {
-      const lines = els.source.value.split(/\r?\n/).filter(line => line.trim());
-      const entries = lines.map((line, index) => {
-        const parts = line.split("|").map(part => part.trim());
-        if (parts.length < 3) throw new Error(`${index + 1}번째 줄은 "시간 | 초 | 문구" 형식이어야 합니다.`);
-        const duration = Number(parts[1]);
-        if (!Number.isFinite(duration) || duration <= 0) throw new Error(`${index + 1}번째 줄의 지속 시간은 0보다 커야 합니다.`);
-        const start = parseTime(parts[0]);
-        return { start, end: start + duration * 1000, text: parts.slice(2).join(" | ") };
+    function parseNotes() {
+      let defaultRule = selectedDefault();
+      const parsed = [];
+
+      els.source.value.split(/\r?\n/).forEach((line, index) => {
+        const text = line.trim();
+        if (!text) return;
+
+        const defaultMatch = text.match(/^default\s*:\s*(next|\d+(?:\.\d+)?)$/i);
+        if (defaultMatch) {
+          defaultRule = defaultMatch[1].toLowerCase();
+          return;
+        }
+
+        const match = text.match(/^(\S+)(?:\s+(\d+(?:\.\d+)?))?\s+(.+)$/);
+        if (!match) throw new Error(`Line ${index + 1}: use "time text"`);
+
+        const start = parseTime(match[1]);
+        const hasDuration = Boolean(match[2]);
+        parsed.push({
+          start,
+          explicitDuration: hasDuration ? Number(match[2]) : null,
+          defaultRule,
+          text: match[3].trim(),
+          line: index + 1
+        });
       });
 
-      return entries.map((entry, index) => {
-        const next = entries[index + 1];
-        const end = next && next.start > entry.start ? Math.min(entry.end, next.start) : entry.end;
-        return [index + 1, `${formatSrtTime(entry.start)} --> ${formatSrtTime(end)}`, entry.text].join("\n");
-      }).join("\n\n");
+      parsed.sort((a, b) => a.start - b.start);
+      return parsed.map((entry, index) => {
+        const next = parsed[index + 1];
+        let duration = entry.explicitDuration;
+        if (duration == null) {
+          duration = entry.defaultRule === "next"
+            ? (next ? Math.max(.1, next.start - entry.start) : fallbackDuration)
+            : Number(entry.defaultRule);
+        }
+        if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Line ${entry.line}: duration must be greater than 0`);
+        return { start: entry.start, duration, end: entry.start + duration, text: entry.text };
+      });
+    }
+
+    function buildSrt(entries) {
+      return entries.map((entry, index) => [
+        index + 1,
+        `${formatSrtTime(entry.start)} --> ${formatSrtTime(entry.end)}`,
+        entry.text
+      ].join("\n")).join("\n\n");
+    }
+
+    function updatePreview() {
+      const now = els.player.currentTime || 0;
+      const active = annotations.find(item => now >= item.start && now <= item.end);
+      els.captionPreview.textContent = active ? active.text : "";
+      els.captionPreview.classList.toggle("visible", Boolean(active));
     }
 
     function rebuild() {
       try {
-        els.srt.textContent = buildSrt();
-        setStatus(els.srt.textContent ? "자막 준비됨" : "자막을 추가하세요");
-        els.render.disabled = !els.srt.textContent || !els.videoPath.value.trim();
-        els.downloadSrt.disabled = !els.srt.textContent;
+        annotations = parseNotes();
+        srt = buildSrt(annotations);
+        const ready = Boolean(srt && els.videoPath.value.trim());
+        els.render.disabled = !ready;
+        setStatus(ready ? `${annotations.length} notes ready` : "Choose a video to export");
+        updatePreview();
       } catch (error) {
-        els.srt.textContent = "";
-        setStatus(error.message, true);
-        els.render.disabled = els.downloadSrt.disabled = true;
+        annotations = [];
+        srt = "";
+        els.render.disabled = true;
+        setStatus(error.message, "error");
+        updatePreview();
       }
     }
 
     function loadVideo(path) {
+      els.videoPath.value = path;
       els.player.src = `/video?path=${encodeURIComponent(path)}&t=${Date.now()}`;
       els.player.load();
+      els.drop.classList.add("hidden");
       rebuild();
     }
 
-    function insertCaption() {
-      const text = els.captionText.value.trim();
-      const duration = Number(els.duration.value) || 3;
-      const line = `${formatInputTime(els.player.currentTime)} | ${duration} | ${text}`;
-      const prefix = els.source.value.trimEnd();
-      els.source.value = prefix ? `${prefix}\n${line}` : line;
-      els.captionText.value = "";
-      els.captionText.focus();
-      rebuild();
+    async function uploadVideo(file) {
+      if (!file || !/\.(mp4|mov|m4v)$/i.test(file.name)) {
+        throw new Error("Use an MP4 or MOV file");
+      }
+      setStatus("Importing video...");
+      const res = await fetch("/upload-video", {
+        method: "POST",
+        headers: { "X-File-Name": encodeURIComponent(file.name) },
+        body: await file.arrayBuffer()
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      loadVideo(data.path);
     }
+
+    els.drop.addEventListener("click", () => els.pick.click());
+    els.dropZone.addEventListener("dragover", event => {
+      event.preventDefault();
+      els.drop.classList.add("dragging");
+    });
+    els.dropZone.addEventListener("dragleave", () => els.drop.classList.remove("dragging"));
+    els.dropZone.addEventListener("drop", async event => {
+      event.preventDefault();
+      els.drop.classList.remove("dragging");
+      try {
+        await uploadVideo(event.dataTransfer.files[0]);
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    });
 
     els.pick.addEventListener("click", async () => {
       try {
-        setStatus("영상 선택 중...");
+        setStatus("Choosing video...");
         const res = await fetch("/pick-video", { method: "POST" });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "영상 선택 실패");
-        els.videoPath.value = data.path;
+        if (!res.ok) throw new Error(data.error || "Choose failed");
         loadVideo(data.path);
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(error.message, "error");
       }
     });
 
-    els.videoPath.addEventListener("change", () => els.videoPath.value.trim() && loadVideo(els.videoPath.value.trim()));
-    els.insert.addEventListener("click", insertCaption);
-    els.captionText.addEventListener("keydown", event => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        insertCaption();
-      }
+    els.videoPath.addEventListener("change", () => {
+      const path = els.videoPath.value.trim();
+      if (path) loadVideo(path);
     });
     els.source.addEventListener("input", rebuild);
-    els.outputName.addEventListener("input", rebuild);
-
-    els.downloadSrt.addEventListener("click", () => {
-      const blob = new Blob([els.srt.textContent + "\n"], { type: "application/x-subrip;charset=utf-8" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "subtitle.srt";
-      link.click();
-      URL.revokeObjectURL(link.href);
-    });
+    $$("input[name='defaultMode']").forEach(input => input.addEventListener("change", rebuild));
+    els.player.addEventListener("timeupdate", updatePreview);
+    els.player.addEventListener("seeked", updatePreview);
 
     els.render.addEventListener("click", async () => {
       try {
         els.render.disabled = true;
-        els.log.textContent = "ffmpeg 실행 중...";
+        setStatus("Exporting...");
         const res = await fetch("/render", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            videoPath: els.videoPath.value.trim(),
-            outputName: els.outputName.value.trim(),
-            srt: els.srt.textContent
-          })
+          body: JSON.stringify({ videoPath: els.videoPath.value.trim(), srt, captionStyle: selectedCaptionStyle() })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "ffmpeg 실패");
-        els.log.textContent = `완료: ${data.outputPath}\n\n${data.log || ""}`;
-        setStatus("영상 생성 완료");
+        if (!res.ok) throw new Error(data.error || "Export failed");
+        setStatus(`Exported: ${data.outputPath}`, "done");
       } catch (error) {
-        els.log.textContent = error.message;
-        setStatus(error.message, true);
+        setStatus(error.message, "error");
       } finally {
         rebuild();
       }
     });
 
     rebuild();
+    updateCaptionStyle();
+    $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", updateCaptionStyle));
   </script>
 </body>
 </html>
