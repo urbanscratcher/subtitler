@@ -6,6 +6,10 @@ from PIL import Image, ImageDraw, ImageFont
 
 FONT_PATHS = [
     os.environ.get("SUBTITLE_FONT"),
+    "/Users/joun/Library/Fonts/Pretendard-Bold.ttf",
+    "/Library/Fonts/Pretendard-Bold.otf",
+    "/Library/Fonts/Pretendard-Bold.ttf",
+    "/System/Library/Fonts/Supplemental/Pretendard.ttc",
     "/System/Library/Fonts/AppleSDGothicNeo.ttc",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
@@ -41,9 +45,15 @@ def wrap_text(draw, text, font, max_width):
     return lines or [text]
 
 
-def render_caption(text, width, output_path):
+def normalize_caption_style(style):
+    style = style or {}
+    return ("white", "black") if style.get("fill") == "white" else ("black", "white")
+
+
+def render_caption(text, width, output_path, caption_style):
     font_size = max(26, round(width * 0.034))
     font = load_font(font_size)
+    fill, stroke = normalize_caption_style(caption_style)
     pad_x = round(width * 0.04)
     max_text_width = width - pad_x * 2
     probe = Image.new("RGBA", (width, 10), (0, 0, 0, 0))
@@ -58,7 +68,7 @@ def render_caption(text, width, output_path):
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font, stroke_width=3)
         x = (width - (bbox[2] - bbox[0])) // 2
-        draw.text((x, y), line, font=font, fill="black", stroke_width=4, stroke_fill="white")
+        draw.text((x, y), line, font=font, fill=fill, stroke_width=4, stroke_fill=stroke)
         y += line_height
     image.save(output_path)
 
@@ -69,10 +79,11 @@ def main():
         payload = json.load(f)
 
     width = int(payload["width"])
+    caption_style = payload.get("captionStyle")
     results = []
     for index, entry in enumerate(payload["entries"]):
         output_path = os.path.join(output_dir, f"caption-{index + 1:03d}.png")
-        render_caption(entry["text"], width, output_path)
+        render_caption(entry["text"], width, output_path, caption_style)
         results.append({
             "path": output_path,
             "start": entry["start"],
