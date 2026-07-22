@@ -9,11 +9,21 @@
     * { box-sizing: border-box; }
     :root {
       color-scheme: light;
-      --ink: #111111;
-      --muted: #6b7280;
-      --line: #e5e7eb;
-      --soft: #f7f7f5;
-      --panel: #ffffff;
+      --background: #f7f7f8;
+      --foreground: #18181b;
+      --card: #ffffff;
+      --card-foreground: #18181b;
+      --muted: #f4f4f5;
+      --muted-foreground: #71717a;
+      --border: #e4e4e7;
+      --input: #d4d4d8;
+      --primary: #18181b;
+      --primary-foreground: #fafafa;
+      --accent: #f4f4f5;
+      --destructive: #b42318;
+      --success: #067647;
+      --ring: #a1a1aa;
+      --radius: 12px;
       --caption-fill: #000000;
       --caption-stroke: #ffffff;
     }
@@ -21,50 +31,119 @@
       margin: 0;
       min-height: 100vh;
       font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--soft);
-      color: var(--ink);
-      font-weight: 700;
-      letter-spacing: 0;
+      background: var(--background);
+      color: var(--foreground);
+      font-weight: 400;
+      -webkit-font-smoothing: antialiased;
     }
     main {
-      width: min(720px, calc(100vw - 32px));
+      width: min(1180px, calc(100vw - 48px));
       margin: 0 auto;
-      padding: 40px 0;
+      padding: 48px 0 56px;
     }
-    header { margin-bottom: 22px; }
+    .app-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    .eyebrow {
+      margin-bottom: 8px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
     h1 {
       margin: 0;
-      font-size: clamp(28px, 5vw, 44px);
-      line-height: 1;
-      letter-spacing: 0;
+      font-size: clamp(28px, 4vw, 38px);
+      line-height: 1.1;
+      letter-spacing: -.035em;
     }
-    p {
+    .lede {
+      max-width: 540px;
       margin: 10px 0 0;
-      color: var(--muted);
+      color: var(--muted-foreground);
       font-size: 15px;
-      line-height: 1.55;
-      font-weight: 700;
+      line-height: 1.5;
     }
-    .stack { display: grid; gap: 14px; }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--muted-foreground);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, .8fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .side-stack {
+      display: grid;
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      color: var(--card-foreground);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 18px 0;
+    }
+    .card-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .card-description {
+      margin: 4px 0 0;
+      color: var(--muted-foreground);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .card-content { padding: 16px 18px 18px; }
+    .card-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 62px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      background: color-mix(in srgb, var(--muted) 45%, transparent);
     }
     .video-shell {
       position: relative;
-      background: #090909;
+      margin: 16px 18px 18px;
+      background: #09090b;
       aspect-ratio: 16 / 9;
       display: grid;
       place-items: center;
+      border-radius: calc(var(--radius) - 4px);
+      overflow: hidden;
     }
     video {
       display: block;
       width: 100%;
       height: 100%;
       object-fit: contain;
-      background: #090909;
+      background: #09090b;
     }
     .drop {
       position: absolute;
@@ -73,21 +152,40 @@
       place-items: center;
       padding: 28px;
       text-align: center;
-      background: #fbfbfa;
-      color: var(--ink);
-      border: 1px dashed #c9c9c3;
+      background: var(--muted);
+      color: var(--foreground);
+      border: 1px dashed var(--input);
+      cursor: pointer;
+      outline: none;
       transition: background 160ms ease, border-color 160ms ease;
     }
-    .drop strong { display: block; font-size: 18px; }
+    .drop:focus-visible {
+      border-color: var(--ring);
+      box-shadow: inset 0 0 0 2px var(--ring);
+    }
+    .upload-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      margin: 0 auto 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      font-size: 22px;
+      font-weight: 300;
+      line-height: 1;
+    }
+    .drop strong { display: block; font-size: 15px; font-weight: 600; }
     .drop span {
       display: block;
-      margin-top: 8px;
-      color: var(--muted);
+      margin-top: 6px;
+      color: var(--muted-foreground);
       font-size: 13px;
     }
     .drop.dragging {
-      background: #ffffff;
-      border-color: #111111;
+      background: var(--accent);
+      border-color: var(--primary);
     }
     .drop.hidden { display: none; }
     .caption-preview {
@@ -108,132 +206,264 @@
       overflow-wrap: anywhere;
     }
     .caption-preview.visible { opacity: 1; }
-    .body { display: grid; gap: 12px; padding: 16px; }
     textarea {
       width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: #ffffff;
-      color: var(--ink);
-      font: 600 15px/1.6 CommitMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      letter-spacing: 0;
+      border: 1px solid var(--input);
+      border-radius: calc(var(--radius) - 4px);
+      background: var(--card);
+      color: var(--foreground);
+      font: 500 14px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       outline: none;
-      min-height: 230px;
-      padding: 14px;
+      min-height: 246px;
+      padding: 13px 14px;
       resize: vertical;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
     }
-    textarea:focus { border-color: #111111; }
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+    textarea:focus {
+      border-color: var(--ring);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
     }
-    .row.between { justify-content: space-between; }
-    label { color: var(--muted); font-size: 13px; }
     .file-name {
-      min-height: 20px;
-      color: var(--muted);
+      min-width: 0;
+      flex: 1;
+      color: var(--muted-foreground);
       font-size: 13px;
-      overflow-wrap: anywhere;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .choice {
+    .field-group {
+      display: grid;
+      gap: 16px;
+    }
+    fieldset {
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    legend {
+      margin-bottom: 8px;
+      color: var(--foreground);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .toggle-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px;
+      border-radius: calc(var(--radius) - 4px);
+      background: var(--muted);
+    }
+    .toggle { cursor: pointer; }
+    .toggle input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .toggle span {
+      display: grid;
+      place-items: center;
+      min-height: 34px;
+      padding: 0 8px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+    }
+    .toggle input:checked + span {
+      border-color: var(--border);
+      background: var(--card);
+      color: var(--foreground);
+    }
+    .toggle input:focus-visible + span {
+      outline: 2px solid var(--ring);
+      outline-offset: 1px;
+    }
+    button {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      min-height: 34px;
-      color: var(--ink);
-      cursor: pointer;
-    }
-    .choice input { accent-color: #111111; }
-    button {
-      border: 0;
-      border-radius: 6px;
-      min-height: 42px;
-      padding: 0 18px;
-      background: #111111;
-      color: #ffffff;
-      font: 700 14px/1 Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--primary);
+      border-radius: 8px;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      font: 600 13px/1 Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       cursor: pointer;
       white-space: nowrap;
+      transition: opacity 140ms ease, background 140ms ease;
     }
+    button:hover:not(:disabled) { opacity: .9; }
+    button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
     button.secondary {
-      background: #ffffff;
-      color: #111111;
-      border: 1px solid var(--line);
+      border-color: var(--border);
+      background: var(--card);
+      color: var(--foreground);
     }
+    button.secondary:hover:not(:disabled) { background: var(--accent); opacity: 1; }
+    button.full { width: 100%; min-height: 42px; }
     button:disabled { opacity: .4; cursor: not-allowed; }
+    .format-guide {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+    }
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: var(--muted);
+      color: var(--foreground);
+      font: 500 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
     .status {
-      min-height: 20px;
-      color: var(--muted);
-      font-size: 13px;
+      min-height: 18px;
+      margin-top: 12px;
+      color: var(--muted-foreground);
+      font-size: 12px;
       line-height: 1.45;
     }
-    .status.error { color: #b42318; }
-    .status.done { color: #067647; }
+    .status.error { color: var(--destructive); }
+    .status.done { color: var(--success); }
+    .privacy-note {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .privacy-dot {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: var(--success);
+    }
     .hidden-input { display: none; }
+    @media (max-width: 900px) {
+      main { width: min(760px, calc(100vw - 32px)); padding-top: 32px; }
+      .workspace { grid-template-columns: 1fr; }
+    }
     @media (max-width: 560px) {
-      main { width: min(100vw - 20px, 720px); padding: 18px 0; }
-      .body { padding: 12px; }
-      textarea { min-height: 190px; }
-      button { width: 100%; }
-      .row { align-items: stretch; }
+      main { width: calc(100vw - 20px); padding: 22px 0 32px; }
+      .app-header { align-items: flex-start; margin-bottom: 20px; }
+      .app-header > .badge { display: none; }
+      .card-header { padding: 16px 16px 0; }
+      .card-content { padding: 14px 16px 16px; }
+      .card-footer { align-items: stretch; padding: 12px 16px; }
+      .video-shell { margin: 14px 16px 16px; }
+      textarea { min-height: 210px; }
+      .file-name { order: -1; flex-basis: 100%; }
+      .card-footer button { width: 100%; }
+      .format-guide { align-items: flex-start; flex-direction: column; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>Video Notes</h1>
-      <p>Drop a video, write timestamped notes, export a shareable MP4.</p>
+    <header class="app-header">
+      <div>
+        <div class="eyebrow">Video annotation workspace</div>
+        <h1>Video Notes</h1>
+        <p class="lede">Turn timestamped feedback into a clean, shareable video.</p>
+      </div>
+      <span class="badge">Runs locally</span>
     </header>
 
-    <div class="stack">
-      <section class="panel">
+    <div class="workspace">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Preview</h2>
+            <p class="card-description">Scrub the timeline to review each note in context.</p>
+          </div>
+          <span class="badge">MP4 · MOV</span>
+        </div>
         <div class="video-shell" id="dropZone">
           <video id="player" controls></video>
           <div class="caption-preview" id="captionPreview"></div>
-          <div class="drop" id="drop">
+          <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose a video or drop it here">
             <div>
-              <strong>Drop MP4 or MOV</strong>
-              <span>or click to choose a video</span>
+              <div class="upload-mark" aria-hidden="true">+</div>
+              <strong>Drop a video here</strong>
+              <span>or click to browse · MP4, MOV, M4V</span>
             </div>
           </div>
         </div>
-        <div class="body">
-          <div class="row">
-            <button class="secondary" id="pick">Choose Video</button>
-            <span class="file-name" id="fileName">No video selected</span>
-            <input class="hidden-input" id="fileInput" type="file" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" />
-          </div>
+        <div class="card-footer">
+          <button class="secondary" id="pick" type="button">Choose video</button>
+          <span class="file-name" id="fileName">No video selected</span>
+          <input class="hidden-input" id="fileInput" type="file" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" />
         </div>
       </section>
 
-      <section class="panel">
-        <div class="body">
-          <label>Notes</label>
-          <textarea id="source" spellcheck="false">3.2 Button doesn't work.
+      <div class="side-stack">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Notes</h2>
+              <p class="card-description">One timestamped comment per line.</p>
+            </div>
+            <span class="badge" id="noteCount">3 notes</span>
+          </div>
+          <div class="card-content">
+            <textarea id="source" aria-label="Timestamped notes" spellcheck="false">3.2 Button doesn't work.
 4 Please change this.
 6 2 Looks strange.</textarea>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="body">
-          <div class="row between">
-            <div class="row" role="radiogroup" aria-label="Default duration">
-              <label class="choice"><input type="radio" name="defaultMode" value="1" checked /> 1 second</label>
-              <label class="choice"><input type="radio" name="defaultMode" value="next" /> Until next note</label>
+            <div class="format-guide">
+              <span>Format</span>
+              <span><code>time</code> <code>duration?</code> <code>comment</code></span>
             </div>
-            <div class="row" role="radiogroup" aria-label="Caption style">
-              <label class="choice"><input type="radio" name="captionStyle" value="black" checked /> Black / White</label>
-              <label class="choice"><input type="radio" name="captionStyle" value="white" /> White / Black</label>
-            </div>
-            <button id="render">Export</button>
           </div>
-          <div class="status" id="status"></div>
-        </div>
-      </section>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Export settings</h2>
+              <p class="card-description">Choose how notes appear in the final video.</p>
+            </div>
+          </div>
+          <div class="card-content">
+            <div class="field-group">
+              <fieldset>
+                <legend>Default duration</legend>
+                <div class="toggle-group">
+                  <label class="toggle"><input type="radio" name="defaultMode" value="1" checked /><span>1 second</span></label>
+                  <label class="toggle"><input type="radio" name="defaultMode" value="next" /><span>Until next note</span></label>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Caption style</legend>
+                <div class="toggle-group">
+                  <label class="toggle"><input type="radio" name="captionStyle" value="black" checked /><span>Black / White</span></label>
+                  <label class="toggle"><input type="radio" name="captionStyle" value="white" /><span>White / Black</span></label>
+                </div>
+              </fieldset>
+
+              <button class="full" id="render" type="button">Export annotated video</button>
+            </div>
+            <div class="status" id="status" role="status" aria-live="polite"></div>
+          </div>
+          <div class="card-footer">
+            <div class="privacy-note"><span class="privacy-dot" aria-hidden="true"></span>Your video stays on this device.</div>
+          </div>
+        </section>
+      </div>
     </div>
   </main>
 
@@ -252,6 +482,7 @@
       fileInput: $("#fileInput"),
       fileName: $("#fileName"),
       source: $("#source"),
+      noteCount: $("#noteCount"),
       render: $("#render"),
       status: $("#status")
     };
@@ -338,12 +569,14 @@
     function rebuild() {
       try {
         annotations = parseNotes();
+        els.noteCount.textContent = `${annotations.length} ${annotations.length === 1 ? "note" : "notes"}`;
         const ready = Boolean(videoFile && annotations.length);
         els.render.disabled = !ready;
         setStatus(ready ? `${annotations.length} notes ready` : "Choose a video to export");
         updatePreview();
       } catch (error) {
         annotations = [];
+        els.noteCount.textContent = "Check notes";
         els.render.disabled = true;
         setStatus(error.message, "error");
         updatePreview();
@@ -512,6 +745,12 @@
     }
 
     els.drop.addEventListener("click", () => els.fileInput.click());
+    els.drop.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        els.fileInput.click();
+      }
+    });
     els.pick.addEventListener("click", () => els.fileInput.click());
     els.fileInput.addEventListener("change", () => {
       try {
@@ -543,6 +782,7 @@
     els.render.addEventListener("click", async () => {
       try {
         els.render.disabled = true;
+        els.render.textContent = "Preparing export…";
         setStatus("Preparing export...");
         await exportVideo();
         setStatus("Downloaded video-annotated.mp4", "done");
@@ -550,7 +790,8 @@
         console.error(error);
         setStatus(error && error.message ? error.message : String(error), "error");
       } finally {
-        els.render.disabled = false;
+        els.render.textContent = "Export annotated video";
+        els.render.disabled = !(videoFile && annotations.length);
       }
     });
 
