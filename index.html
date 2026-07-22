@@ -109,7 +109,7 @@
     }
     .caption-preview.visible { opacity: 1; }
     .body { display: grid; gap: 12px; padding: 16px; }
-    textarea, input {
+    textarea {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 6px;
@@ -118,14 +118,11 @@
       font: 600 15px/1.6 CommitMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       letter-spacing: 0;
       outline: none;
-    }
-    textarea {
       min-height: 230px;
       padding: 14px;
       resize: vertical;
     }
-    input { min-height: 38px; padding: 8px 10px; }
-    textarea:focus, input:focus { border-color: #111111; }
+    textarea:focus { border-color: #111111; }
     .row {
       display: flex;
       align-items: center;
@@ -134,7 +131,12 @@
     }
     .row.between { justify-content: space-between; }
     label { color: var(--muted); font-size: 13px; }
-    .path-label { flex: 1 1 280px; }
+    .file-name {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
     .choice {
       display: inline-flex;
       align-items: center;
@@ -143,7 +145,7 @@
       color: var(--ink);
       cursor: pointer;
     }
-    .choice input { width: auto; min-height: 0; accent-color: #111111; }
+    .choice input { accent-color: #111111; }
     button {
       border: 0;
       border-radius: 6px;
@@ -169,6 +171,7 @@
     }
     .status.error { color: #b42318; }
     .status.done { color: #067647; }
+    .hidden-input { display: none; }
     @media (max-width: 560px) {
       main { width: min(100vw - 20px, 720px); padding: 18px 0; }
       .body { padding: 12px; }
@@ -200,9 +203,8 @@
         <div class="body">
           <div class="row">
             <button class="secondary" id="pick">Choose Video</button>
-            <label class="path-label">Path
-              <input id="videoPath" placeholder="/Users/me/Desktop/video.mp4" />
-            </label>
+            <span class="file-name" id="fileName">No video selected</span>
+            <input class="hidden-input" id="fileInput" type="file" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" />
           </div>
         </div>
       </section>
@@ -235,7 +237,10 @@
     </div>
   </main>
 
-  <script>
+  <script type="module">
+    import { FFmpeg } from "/node_modules/@ffmpeg/ffmpeg/dist/esm/index.js";
+    import { fetchFile } from "/node_modules/@ffmpeg/util/dist/esm/index.js";
+
     const $ = selector => document.querySelector(selector);
     const $$ = selector => [...document.querySelectorAll(selector)];
     const els = {
@@ -244,13 +249,18 @@
       drop: $("#drop"),
       captionPreview: $("#captionPreview"),
       pick: $("#pick"),
-      videoPath: $("#videoPath"),
+      fileInput: $("#fileInput"),
+      fileName: $("#fileName"),
       source: $("#source"),
       render: $("#render"),
       status: $("#status")
     };
+
+    const ffmpeg = new FFmpeg();
+    let ffmpegLoaded = false;
+    let videoFile = null;
+    let videoUrl = "";
     let annotations = [];
-    let srt = "";
     const fallbackDuration = 1;
 
     function setStatus(message, tone = "") {
@@ -285,15 +295,6 @@
       return minutes * 60 + seconds + millis / 1000;
     }
 
-    function formatSrtTime(seconds) {
-      const total = Math.max(0, Math.round(seconds * 1000));
-      const h = Math.floor(total / 3600000);
-      const m = Math.floor((total % 3600000) / 60000);
-      const s = Math.floor((total % 60000) / 1000);
-      const z = total % 1000;
-      return [h, m, s].map(n => String(n).padStart(2, "0")).join(":") + "," + String(z).padStart(3, "0");
-    }
-
     function parseNotes() {
       let defaultRule = selectedDefault();
       const parsed = [];
@@ -311,11 +312,9 @@
         const match = text.match(/^(\S+)(?:\s+(\d+(?:\.\d+)?))?\s+(.+)$/);
         if (!match) throw new Error(`Line ${index + 1}: use "time text"`);
 
-        const start = parseTime(match[1]);
-        const hasDuration = Boolean(match[2]);
         parsed.push({
-          start,
-          explicitDuration: hasDuration ? Number(match[2]) : null,
+          start: parseTime(match[1]),
+          explicitDuration: match[2] ? Number(match[2]) : null,
           defaultRule,
           text: match[3].trim(),
           line: index + 1
@@ -336,12 +335,19 @@
       });
     }
 
-    function buildSrt(entries) {
-      return entries.map((entry, index) => [
-        index + 1,
-        `${formatSrtTime(entry.start)} --> ${formatSrtTime(entry.end)}`,
-        entry.text
-      ].join("\n")).join("\n\n");
+    function rebuild() {
+      try {
+        annotations = parseNotes();
+        const ready = Boolean(videoFile && annotations.length);
+        els.render.disabled = !ready;
+        setStatus(ready ? `${annotations.length} notes ready` : "Choose a video to export");
+        updatePreview();
+      } catch (error) {
+        annotations = [];
+        els.render.disabled = true;
+        setStatus(error.message, "error");
+        updatePreview();
+      }
     }
 
     function updatePreview() {
@@ -351,105 +357,205 @@
       els.captionPreview.classList.toggle("visible", Boolean(active));
     }
 
-    function rebuild() {
-      try {
-        annotations = parseNotes();
-        srt = buildSrt(annotations);
-        const ready = Boolean(srt && els.videoPath.value.trim());
-        els.render.disabled = !ready;
-        setStatus(ready ? `${annotations.length} notes ready` : "Choose a video to export");
-        updatePreview();
-      } catch (error) {
-        annotations = [];
-        srt = "";
-        els.render.disabled = true;
-        setStatus(error.message, "error");
-        updatePreview();
+    function loadVideo(file) {
+      if (!file || !/\.(mp4|mov|m4v)$/i.test(file.name)) {
+        throw new Error("Use an MP4 or MOV file");
       }
-    }
-
-    function loadVideo(path) {
-      els.videoPath.value = path;
-      els.player.src = `/video?path=${encodeURIComponent(path)}&t=${Date.now()}`;
+      videoFile = file;
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
+      videoUrl = URL.createObjectURL(file);
+      els.player.src = videoUrl;
       els.player.load();
+      els.fileName.textContent = file.name;
       els.drop.classList.add("hidden");
       rebuild();
     }
 
-    async function uploadVideo(file) {
-      if (!file || !/\.(mp4|mov|m4v)$/i.test(file.name)) {
-        throw new Error("Use an MP4 or MOV file");
+    function wrapText(ctx, text, maxWidth) {
+      const lines = [];
+      for (const rawLine of text.split(/\r?\n/) || [""]) {
+        let current = "";
+        for (const char of rawLine) {
+          const candidate = current + char;
+          if (ctx.measureText(candidate).width <= maxWidth) {
+            current = candidate;
+          } else {
+            if (current) lines.push(current);
+            current = char;
+          }
+        }
+        if (current) lines.push(current);
       }
-      setStatus("Importing video...");
-      const res = await fetch("/upload-video", {
-        method: "POST",
-        headers: { "X-File-Name": encodeURIComponent(file.name) },
-        body: await file.arrayBuffer()
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
-      loadVideo(data.path);
+      return lines.length ? lines : [text];
     }
 
-    els.drop.addEventListener("click", () => els.pick.click());
+    function canvasBlob(canvas) {
+      return new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    }
+
+    async function makeCaptionPng(entry, width) {
+      const style = selectedCaptionStyle();
+      const fontSize = Math.max(26, Math.round(width * 0.034));
+      const lineHeight = Math.round(fontSize * 1.35);
+      const padX = Math.round(width * 0.04);
+      const maxTextWidth = width - padX * 2;
+      const probe = document.createElement("canvas");
+      const probeCtx = probe.getContext("2d");
+      probeCtx.font = `700 ${fontSize}px Pretendard, sans-serif`;
+      const lines = wrapText(probeCtx, entry.text, maxTextWidth);
+      const height = Math.max(Math.round(width * 0.11), lineHeight * lines.length + 24);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.font = `700 ${fontSize}px Pretendard, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = Math.max(4, Math.round(width * 0.006));
+      ctx.strokeStyle = style.stroke;
+      ctx.fillStyle = style.fill;
+
+      let y = Math.round((height - lineHeight * lines.length) / 2);
+      for (const line of lines) {
+        ctx.strokeText(line, width / 2, y);
+        ctx.fillText(line, width / 2, y);
+        y += lineHeight;
+      }
+
+      return new Uint8Array(await (await canvasBlob(canvas)).arrayBuffer());
+    }
+
+    async function ensureFfmpeg() {
+      if (ffmpegLoaded) return;
+      setStatus("Loading ffmpeg.wasm...");
+      ffmpeg.on("progress", ({ progress }) => {
+        if (Number.isFinite(progress)) setStatus(`Exporting... ${Math.round(progress * 100)}%`);
+      });
+      ffmpeg.on("log", ({ message }) => {
+        console.debug(message);
+      });
+      const coreBaseURL = `${location.origin}/node_modules/@ffmpeg/core/dist/esm`;
+      await ffmpeg.load({
+        classWorkerURL: `${location.origin}/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js`,
+        coreURL: `${coreBaseURL}/ffmpeg-core.js`,
+        wasmURL: `${coreBaseURL}/ffmpeg-core.wasm`
+      });
+      ffmpegLoaded = true;
+    }
+
+    function inputName(file) {
+      const ext = file.name.toLowerCase().endsWith(".mov") ? "mov" : "mp4";
+      return `input.${ext}`;
+    }
+
+    async function exportVideo() {
+      if (!videoFile) return;
+      annotations = parseNotes();
+      if (!annotations.length) throw new Error("Add at least one note");
+      if (!els.player.videoWidth) throw new Error("Video metadata is not ready yet");
+
+      await document.fonts.ready;
+      await ensureFfmpeg();
+
+      const inName = inputName(videoFile);
+      const outName = "video-annotated.mp4";
+      await ffmpeg.writeFile(inName, await fetchFile(videoFile));
+
+      const args = ["-y", "-i", inName];
+      for (let index = 0; index < annotations.length; index += 1) {
+        const name = `caption-${index}.png`;
+        await ffmpeg.writeFile(name, await makeCaptionPng(annotations[index], els.player.videoWidth));
+        args.push("-loop", "1", "-i", name);
+      }
+
+      let input = "[0:v]";
+      const filters = annotations.map((entry, index) => {
+        const caption = `[cap${index}]`;
+        const output = index === annotations.length - 1 ? "[vout]" : `[v${index + 1}]`;
+        const fadeOutStart = Math.max(entry.start, entry.end - 0.12);
+        const enable = `between(t\\,${entry.start}\\,${entry.end})`;
+        const filter = [
+          `[${index + 1}:v]format=rgba,fade=t=in:st=${entry.start}:d=0.12:alpha=1,fade=t=out:st=${fadeOutStart}:d=0.12:alpha=1${caption}`,
+          `${input}${caption}overlay=x=0:y=H-h-32:shortest=1:enable='${enable}'${output}`
+        ].join(";");
+        input = output;
+        return filter;
+      }).join(";");
+
+      const exitCode = await ffmpeg.exec([
+        ...args,
+        "-filter_complex", filters,
+        "-map", "[vout]",
+        "-map", "0:a?",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-shortest",
+        "-movflags", "+faststart",
+        outName
+      ]);
+      if (exitCode !== 0) throw new Error(`ffmpeg exited with code ${exitCode}`);
+
+      const data = await ffmpeg.readFile(outName);
+      const url = URL.createObjectURL(new Blob([data.buffer], { type: "video/mp4" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = outName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    }
+
+    els.drop.addEventListener("click", () => els.fileInput.click());
+    els.pick.addEventListener("click", () => els.fileInput.click());
+    els.fileInput.addEventListener("change", () => {
+      try {
+        loadVideo(els.fileInput.files[0]);
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    });
     els.dropZone.addEventListener("dragover", event => {
       event.preventDefault();
       els.drop.classList.add("dragging");
     });
     els.dropZone.addEventListener("dragleave", () => els.drop.classList.remove("dragging"));
-    els.dropZone.addEventListener("drop", async event => {
+    els.dropZone.addEventListener("drop", event => {
       event.preventDefault();
       els.drop.classList.remove("dragging");
       try {
-        await uploadVideo(event.dataTransfer.files[0]);
+        loadVideo(event.dataTransfer.files[0]);
       } catch (error) {
         setStatus(error.message, "error");
       }
-    });
-
-    els.pick.addEventListener("click", async () => {
-      try {
-        setStatus("Choosing video...");
-        const res = await fetch("/pick-video", { method: "POST" });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Choose failed");
-        loadVideo(data.path);
-      } catch (error) {
-        setStatus(error.message, "error");
-      }
-    });
-
-    els.videoPath.addEventListener("change", () => {
-      const path = els.videoPath.value.trim();
-      if (path) loadVideo(path);
     });
     els.source.addEventListener("input", rebuild);
     $$("input[name='defaultMode']").forEach(input => input.addEventListener("change", rebuild));
+    $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", updateCaptionStyle));
     els.player.addEventListener("timeupdate", updatePreview);
     els.player.addEventListener("seeked", updatePreview);
-
+    els.player.addEventListener("loadedmetadata", rebuild);
     els.render.addEventListener("click", async () => {
       try {
         els.render.disabled = true;
-        setStatus("Exporting...");
-        const res = await fetch("/render", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoPath: els.videoPath.value.trim(), srt, captionStyle: selectedCaptionStyle() })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Export failed");
-        setStatus(`Exported: ${data.outputPath}`, "done");
+        setStatus("Preparing export...");
+        await exportVideo();
+        setStatus("Downloaded video-annotated.mp4", "done");
       } catch (error) {
-        setStatus(error.message, "error");
+        console.error(error);
+        setStatus(error && error.message ? error.message : String(error), "error");
       } finally {
-        rebuild();
+        els.render.disabled = false;
       }
     });
 
-    rebuild();
     updateCaptionStyle();
-    $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", updateCaptionStyle));
+    rebuild();
   </script>
 </body>
 </html>
