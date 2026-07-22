@@ -1,9 +1,13 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Video Notes</title>
+  <script>
+    const browserLanguage = navigator.languages?.[0] || navigator.language || "en";
+    document.documentElement.lang = browserLanguage.toLowerCase().startsWith("ko") ? "ko" : "en";
+  </script>
   <style>
     @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
     * { box-sizing: border-box; }
@@ -376,36 +380,36 @@
   <main>
     <header class="app-header">
       <div>
-        <div class="eyebrow">Video annotation workspace</div>
+        <div class="eyebrow" data-i18n="eyebrow">Video annotation workspace</div>
         <h1>Video Notes</h1>
-        <p class="lede">Turn timestamped feedback into a clean, shareable video.</p>
+        <p class="lede" data-i18n="lede">Turn timestamped feedback into a clean, shareable video.</p>
       </div>
-      <span class="badge">Runs locally</span>
+      <span class="badge" data-i18n="runsLocally">Runs locally</span>
     </header>
 
     <div class="workspace">
       <section class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Preview</h2>
-            <p class="card-description">Scrub the timeline to review each note in context.</p>
+            <h2 class="card-title" data-i18n="previewTitle">Preview</h2>
+            <p class="card-description" data-i18n="previewDescription">Scrub the timeline to review each note in context.</p>
           </div>
           <span class="badge">MP4 · MOV</span>
         </div>
         <div class="video-shell" id="dropZone">
           <video id="player" controls></video>
           <div class="caption-preview" id="captionPreview"></div>
-          <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose a video or drop it here">
+          <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose a video or drop it here" data-i18n-aria-label="dropAriaLabel">
             <div>
               <div class="upload-mark" aria-hidden="true">+</div>
-              <strong>Drop a video here</strong>
-              <span>or click to browse · MP4, MOV, M4V</span>
+              <strong data-i18n="dropTitle">Drop a video here</strong>
+              <span data-i18n="dropDescription">or click to browse · MP4, MOV, M4V</span>
             </div>
           </div>
         </div>
         <div class="card-footer">
-          <button class="secondary" id="pick" type="button">Choose video</button>
-          <span class="file-name" id="fileName">No video selected</span>
+          <button class="secondary" id="pick" type="button" data-i18n="chooseVideo">Choose video</button>
+          <span class="file-name" id="fileName" data-i18n="noVideoSelected">No video selected</span>
           <input class="hidden-input" id="fileInput" type="file" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v" />
         </div>
       </section>
@@ -414,18 +418,18 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <h2 class="card-title">Notes</h2>
-              <p class="card-description">One timestamped comment per line.</p>
+              <h2 class="card-title" data-i18n="notesTitle">Notes</h2>
+              <p class="card-description" data-i18n="notesDescription">One timestamped comment per line.</p>
             </div>
-            <span class="badge" id="noteCount">3 notes</span>
+            <span class="badge" id="noteCount" data-i18n="initialNoteCount">3 notes</span>
           </div>
           <div class="card-content">
-            <textarea id="source" aria-label="Timestamped notes" spellcheck="false">3.2 Button doesn't work.
+            <textarea id="source" aria-label="Timestamped notes" data-i18n-aria-label="notesAriaLabel" data-i18n-value="sampleNotes" spellcheck="false">3.2 Button doesn't work.
 4 Please change this.
 6 2 Looks strange.</textarea>
             <div class="format-guide">
-              <span>Format</span>
-              <span><code>time</code> <code>duration?</code> <code>comment</code></span>
+              <span data-i18n="format">Format</span>
+              <span><code data-i18n="formatTime">time</code> <code data-i18n="formatDuration">duration?</code> <code data-i18n="formatComment">comment</code></span>
             </div>
           </div>
         </section>
@@ -433,39 +437,158 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <h2 class="card-title">Export settings</h2>
-              <p class="card-description">Choose how notes appear in the final video.</p>
+              <h2 class="card-title" data-i18n="exportSettingsTitle">Export settings</h2>
+              <p class="card-description" data-i18n="exportSettingsDescription">Choose how notes appear in the final video.</p>
             </div>
           </div>
           <div class="card-content">
             <div class="field-group">
               <fieldset>
-                <legend>Default duration</legend>
+                <legend data-i18n="defaultDuration">Default duration</legend>
                 <div class="toggle-group">
-                  <label class="toggle"><input type="radio" name="defaultMode" value="1" checked /><span>1 second</span></label>
-                  <label class="toggle"><input type="radio" name="defaultMode" value="next" /><span>Until next note</span></label>
+                  <label class="toggle"><input type="radio" name="defaultMode" value="1" checked /><span data-i18n="oneSecond">1 second</span></label>
+                  <label class="toggle"><input type="radio" name="defaultMode" value="next" /><span data-i18n="untilNextNote">Until next note</span></label>
                 </div>
               </fieldset>
 
               <fieldset>
-                <legend>Caption style</legend>
+                <legend data-i18n="captionStyle">Caption style</legend>
                 <div class="toggle-group">
                   <label class="toggle"><input type="radio" name="captionStyle" value="black" checked /><span>Black / White</span></label>
                   <label class="toggle"><input type="radio" name="captionStyle" value="white" /><span>White / Black</span></label>
                 </div>
               </fieldset>
 
-              <button class="full" id="render" type="button">Export annotated video</button>
+              <button class="full" id="render" type="button" data-i18n="exportButton">Export annotated video</button>
             </div>
             <div class="status" id="status" role="status" aria-live="polite"></div>
           </div>
           <div class="card-footer">
-            <div class="privacy-note"><span class="privacy-dot" aria-hidden="true"></span>Your video stays on this device.</div>
+            <div class="privacy-note"><span class="privacy-dot" aria-hidden="true"></span><span data-i18n="privacyNote">Your video stays on this device.</span></div>
           </div>
         </section>
       </div>
     </div>
   </main>
+
+  <script>
+    (() => {
+      const messages = {
+        en: {
+          eyebrow: "Video annotation workspace",
+          lede: "Turn timestamped feedback into a clean, shareable video.",
+          runsLocally: "Runs locally",
+          previewTitle: "Preview",
+          previewDescription: "Scrub the timeline to review each note in context.",
+          dropAriaLabel: "Choose a video or drop it here",
+          dropTitle: "Drop a video here",
+          dropDescription: "or click to browse · MP4, MOV, M4V",
+          chooseVideo: "Choose video",
+          noVideoSelected: "No video selected",
+          notesTitle: "Notes",
+          notesDescription: "One timestamped comment per line.",
+          initialNoteCount: "3 notes",
+          notesAriaLabel: "Timestamped notes",
+          sampleNotes: "3.2 Button doesn't work.\n4 Please change this.\n6 2 Looks strange.",
+          format: "Format",
+          formatTime: "time",
+          formatDuration: "duration?",
+          formatComment: "comment",
+          exportSettingsTitle: "Export settings",
+          exportSettingsDescription: "Choose how notes appear in the final video.",
+          defaultDuration: "Default duration",
+          oneSecond: "1 second",
+          untilNextNote: "Until next note",
+          captionStyle: "Caption style",
+          exportButton: "Export annotated video",
+          privacyNote: "Your video stays on this device.",
+          noteCount: "{count} notes",
+          noteCountSingular: "1 note",
+          notesReady: "{count} notes ready",
+          noteReadySingular: "1 note ready",
+          checkNotes: "Check notes",
+          chooseVideoToExport: "Choose a video to export",
+          invalidTime: "Invalid time: {value}",
+          invalidSeconds: "Invalid seconds: {value}",
+          invalidLine: "Line {line}: use \"time text\"",
+          invalidDuration: "Line {line}: duration must be greater than 0",
+          invalidVideo: "Use an MP4 or MOV file",
+          loadingFfmpeg: "Loading ffmpeg.wasm…",
+          exporting: "Exporting… {progress}%",
+          addNote: "Add at least one note",
+          metadataNotReady: "Video metadata is not ready yet",
+          ffmpegFailed: "ffmpeg exited with code {code}",
+          preparingExport: "Preparing export…",
+          downloaded: "Downloaded video-annotated.mp4"
+        },
+        ko: {
+          eyebrow: "영상 피드백 작업 공간",
+          lede: "타임스탬프 피드백을 깔끔하게 정리된 공유용 영상으로 만들어보세요.",
+          runsLocally: "기기에서만 처리",
+          previewTitle: "미리보기",
+          previewDescription: "타임라인을 이동하며 각 메모가 표시되는 장면을 확인하세요.",
+          dropAriaLabel: "영상을 선택하거나 여기에 끌어다 놓기",
+          dropTitle: "영상을 여기에 놓으세요",
+          dropDescription: "또는 클릭하여 선택 · MP4, MOV, M4V",
+          chooseVideo: "영상 선택",
+          noVideoSelected: "선택한 영상 없음",
+          notesTitle: "메모",
+          notesDescription: "한 줄에 하나씩 타임스탬프와 내용을 입력하세요.",
+          initialNoteCount: "메모 3개",
+          notesAriaLabel: "타임스탬프 메모",
+          sampleNotes: "3.2 버튼이 작동하지 않아요.\n4 이 부분을 변경해주세요.\n6 2 어색해 보여요.",
+          format: "형식",
+          formatTime: "시간",
+          formatDuration: "지속시간?",
+          formatComment: "내용",
+          exportSettingsTitle: "내보내기 설정",
+          exportSettingsDescription: "완성 영상에 메모가 표시되는 방식을 선택하세요.",
+          defaultDuration: "기본 표시 시간",
+          oneSecond: "1초",
+          untilNextNote: "다음 메모까지",
+          captionStyle: "자막 스타일",
+          exportButton: "메모가 포함된 영상 내보내기",
+          privacyNote: "영상은 이 기기 밖으로 전송되지 않습니다.",
+          noteCount: "메모 {count}개",
+          noteCountSingular: "메모 1개",
+          notesReady: "메모 {count}개 준비됨",
+          noteReadySingular: "메모 1개 준비됨",
+          checkNotes: "메모 확인 필요",
+          chooseVideoToExport: "내보낼 영상을 선택하세요",
+          invalidTime: "잘못된 시간 형식: {value}",
+          invalidSeconds: "잘못된 초 값: {value}",
+          invalidLine: "{line}번째 줄: \"시간 내용\" 형식으로 입력하세요",
+          invalidDuration: "{line}번째 줄: 지속시간은 0보다 커야 합니다",
+          invalidVideo: "MP4 또는 MOV 파일을 선택하세요",
+          loadingFfmpeg: "영상 처리 도구 불러오는 중…",
+          exporting: "내보내는 중… {progress}%",
+          addNote: "메모를 하나 이상 입력하세요",
+          metadataNotReady: "영상 정보를 아직 불러오지 못했습니다",
+          ffmpegFailed: "영상 처리에 실패했습니다 (코드: {code})",
+          preparingExport: "내보내기 준비 중…",
+          downloaded: "video-annotated.mp4 다운로드 완료"
+        }
+      };
+
+      const locale = document.documentElement.lang === "ko" ? "ko" : "en";
+      const t = (key, values = {}) => {
+        const template = messages[locale][key] ?? messages.en[key] ?? key;
+        return template.replace(/\{(\w+)\}/g, (_, name) => values[name] ?? `{${name}}`);
+      };
+
+      document.querySelectorAll("[data-i18n]").forEach(element => {
+        element.textContent = t(element.dataset.i18n);
+      });
+      document.querySelectorAll("[data-i18n-aria-label]").forEach(element => {
+        element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+      });
+      document.querySelectorAll("[data-i18n-value]").forEach(element => {
+        element.value = t(element.dataset.i18nValue);
+      });
+
+      window.appI18n = { locale, t };
+    })();
+  </script>
 
   <script type="module">
     import { FFmpeg } from "/node_modules/@ffmpeg/ffmpeg/dist/esm/index.js";
@@ -473,6 +596,7 @@
 
     const $ = selector => document.querySelector(selector);
     const $$ = selector => [...document.querySelectorAll(selector)];
+    const { t } = window.appI18n;
     const els = {
       player: $("#player"),
       dropZone: $("#dropZone"),
@@ -518,11 +642,11 @@
     function parseTime(value) {
       const clean = value.trim();
       const clock = clean.match(/^(?:(\d{1,2}):)?(\d{1,2})(?:\.(\d{1,3}))?$/);
-      if (!clock) throw new Error(`Invalid time: ${value}`);
+      if (!clock) throw new Error(t("invalidTime", { value }));
       const minutes = Number(clock[1] || 0);
       const seconds = Number(clock[2]);
       const millis = Number((clock[3] || "0").padEnd(3, "0"));
-      if (seconds >= 60 && clock[1]) throw new Error(`Invalid seconds: ${value}`);
+      if (seconds >= 60 && clock[1]) throw new Error(t("invalidSeconds", { value }));
       return minutes * 60 + seconds + millis / 1000;
     }
 
@@ -541,7 +665,7 @@
         }
 
         const match = text.match(/^(\S+)(?:\s+(\d+(?:\.\d+)?))?\s+(.+)$/);
-        if (!match) throw new Error(`Line ${index + 1}: use "time text"`);
+        if (!match) throw new Error(t("invalidLine", { line: index + 1 }));
 
         parsed.push({
           start: parseTime(match[1]),
@@ -561,7 +685,7 @@
             ? (next ? Math.max(.1, next.start - entry.start) : fallbackDuration)
             : Number(entry.defaultRule);
         }
-        if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Line ${entry.line}: duration must be greater than 0`);
+        if (!Number.isFinite(duration) || duration <= 0) throw new Error(t("invalidDuration", { line: entry.line }));
         return { start: entry.start, duration, end: entry.start + duration, text: entry.text };
       });
     }
@@ -569,14 +693,16 @@
     function rebuild() {
       try {
         annotations = parseNotes();
-        els.noteCount.textContent = `${annotations.length} ${annotations.length === 1 ? "note" : "notes"}`;
+        els.noteCount.textContent = t(annotations.length === 1 ? "noteCountSingular" : "noteCount", { count: annotations.length });
         const ready = Boolean(videoFile && annotations.length);
         els.render.disabled = !ready;
-        setStatus(ready ? `${annotations.length} notes ready` : "Choose a video to export");
+        setStatus(ready
+          ? t(annotations.length === 1 ? "noteReadySingular" : "notesReady", { count: annotations.length })
+          : t(videoFile ? "addNote" : "chooseVideoToExport"));
         updatePreview();
       } catch (error) {
         annotations = [];
-        els.noteCount.textContent = "Check notes";
+        els.noteCount.textContent = t("checkNotes");
         els.render.disabled = true;
         setStatus(error.message, "error");
         updatePreview();
@@ -592,7 +718,7 @@
 
     function loadVideo(file) {
       if (!file || !/\.(mp4|mov|m4v)$/i.test(file.name)) {
-        throw new Error("Use an MP4 or MOV file");
+        throw new Error(t("invalidVideo"));
       }
       videoFile = file;
       if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -662,9 +788,9 @@
 
     async function ensureFfmpeg() {
       if (ffmpegLoaded) return;
-      setStatus("Loading ffmpeg.wasm...");
+      setStatus(t("loadingFfmpeg"));
       ffmpeg.on("progress", ({ progress }) => {
-        if (Number.isFinite(progress)) setStatus(`Exporting... ${Math.round(progress * 100)}%`);
+        if (Number.isFinite(progress)) setStatus(t("exporting", { progress: Math.round(progress * 100) }));
       });
       ffmpeg.on("log", ({ message }) => {
         console.debug(message);
@@ -686,8 +812,8 @@
     async function exportVideo() {
       if (!videoFile) return;
       annotations = parseNotes();
-      if (!annotations.length) throw new Error("Add at least one note");
-      if (!els.player.videoWidth) throw new Error("Video metadata is not ready yet");
+      if (!annotations.length) throw new Error(t("addNote"));
+      if (!els.player.videoWidth) throw new Error(t("metadataNotReady"));
 
       await document.fonts.ready;
       await ensureFfmpeg();
@@ -731,7 +857,7 @@
         "-movflags", "+faststart",
         outName
       ]);
-      if (exitCode !== 0) throw new Error(`ffmpeg exited with code ${exitCode}`);
+      if (exitCode !== 0) throw new Error(t("ffmpegFailed", { code: exitCode }));
 
       const data = await ffmpeg.readFile(outName);
       const url = URL.createObjectURL(new Blob([data.buffer], { type: "video/mp4" }));
@@ -782,15 +908,15 @@
     els.render.addEventListener("click", async () => {
       try {
         els.render.disabled = true;
-        els.render.textContent = "Preparing export…";
-        setStatus("Preparing export...");
+        els.render.textContent = t("preparingExport");
+        setStatus(t("preparingExport"));
         await exportVideo();
-        setStatus("Downloaded video-annotated.mp4", "done");
+        setStatus(t("downloaded"), "done");
       } catch (error) {
         console.error(error);
         setStatus(error && error.message ? error.message : String(error), "error");
       } finally {
-        els.render.textContent = "Export annotated video";
+        els.render.textContent = t("exportButton");
         els.render.disabled = !(videoFile && annotations.length);
       }
     });
