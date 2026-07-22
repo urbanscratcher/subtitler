@@ -210,6 +210,40 @@
       overflow-wrap: anywhere;
     }
     .caption-preview.visible { opacity: 1; }
+    .seek-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: -6px 18px 16px;
+    }
+    .seek-controls[hidden] { display: none; }
+    .seek-step {
+      min-width: 64px;
+      min-height: 44px;
+      padding: 0 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .seek-track {
+      min-width: 0;
+      flex: 1;
+    }
+    .seek-range {
+      display: block;
+      width: 100%;
+      height: 32px;
+      margin: 0;
+      accent-color: var(--primary);
+      cursor: pointer;
+      touch-action: pan-y;
+    }
+    .seek-time {
+      display: flex;
+      justify-content: space-between;
+      margin-top: -3px;
+      color: var(--muted-foreground);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
     textarea {
       width: 100%;
       border: 1px solid var(--input);
@@ -369,6 +403,8 @@
       .card-content { padding: 14px 16px 16px; }
       .card-footer { align-items: stretch; padding: 12px 16px; }
       .video-shell { margin: 14px 16px 16px; }
+      .seek-controls { gap: 8px; margin: -7px 16px 14px; }
+      .seek-step { min-width: 58px; padding: 0 8px; }
       textarea { min-height: 210px; }
       .file-name { order: -1; flex-basis: 100%; }
       .card-footer button { width: 100%; }
@@ -406,6 +442,14 @@
               <span data-i18n="dropDescription">or click to browse · MP4, MOV, M4V</span>
             </div>
           </div>
+        </div>
+        <div class="seek-controls" id="seekControls" hidden>
+          <button class="secondary seek-step" id="seekBack" type="button" data-i18n-aria-label="seekBackAriaLabel">−0.1s</button>
+          <div class="seek-track">
+            <input class="seek-range" id="seekRange" type="range" min="0" max="0" step="0.01" value="0" data-i18n-aria-label="seekRangeAriaLabel" />
+            <div class="seek-time" aria-hidden="true"><span id="currentTime">0:00.0</span><span id="duration">0:00.0</span></div>
+          </div>
+          <button class="secondary seek-step" id="seekForward" type="button" data-i18n-aria-label="seekForwardAriaLabel">+0.1s</button>
         </div>
         <div class="card-footer">
           <button class="secondary" id="pick" type="button" data-i18n="chooseVideo">Choose video</button>
@@ -485,6 +529,9 @@
           dropDescription: "or click to browse · MP4, MOV, M4V",
           chooseVideo: "Choose video",
           noVideoSelected: "No video selected",
+          seekBackAriaLabel: "Move back 0.1 seconds",
+          seekForwardAriaLabel: "Move forward 0.1 seconds",
+          seekRangeAriaLabel: "Video timeline",
           notesTitle: "Notes",
           notesDescription: "One timestamped comment per line.",
           initialNoteCount: "3 notes",
@@ -532,6 +579,9 @@
           dropDescription: "또는 클릭하여 선택 · MP4, MOV, M4V",
           chooseVideo: "영상 선택",
           noVideoSelected: "선택한 영상 없음",
+          seekBackAriaLabel: "0.1초 뒤로 이동",
+          seekForwardAriaLabel: "0.1초 앞으로 이동",
+          seekRangeAriaLabel: "영상 타임라인",
           notesTitle: "메모",
           notesDescription: "한 줄에 하나씩 타임스탬프와 내용을 입력하세요.",
           initialNoteCount: "메모 3개",
@@ -602,6 +652,12 @@
       dropZone: $("#dropZone"),
       drop: $("#drop"),
       captionPreview: $("#captionPreview"),
+      seekControls: $("#seekControls"),
+      seekRange: $("#seekRange"),
+      seekBack: $("#seekBack"),
+      seekForward: $("#seekForward"),
+      currentTime: $("#currentTime"),
+      duration: $("#duration"),
       pick: $("#pick"),
       fileInput: $("#fileInput"),
       fileName: $("#fileName"),
@@ -714,6 +770,30 @@
       const active = annotations.find(item => now >= item.start && now <= item.end);
       els.captionPreview.textContent = active ? active.text : "";
       els.captionPreview.classList.toggle("visible", Boolean(active));
+    }
+
+    function formatPlaybackTime(seconds) {
+      const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+      const minutes = Math.floor(safe / 60);
+      const remainder = (safe % 60).toFixed(1).padStart(4, "0");
+      return `${minutes}:${remainder}`;
+    }
+
+    function updateSeekControls() {
+      const duration = Number.isFinite(els.player.duration) ? els.player.duration : 0;
+      const currentTime = Math.min(els.player.currentTime || 0, duration);
+      els.seekControls.hidden = !duration;
+      els.seekRange.max = String(duration);
+      els.seekRange.value = String(currentTime);
+      els.currentTime.textContent = formatPlaybackTime(currentTime);
+      els.duration.textContent = formatPlaybackTime(duration);
+    }
+
+    function seekBy(seconds) {
+      const duration = Number.isFinite(els.player.duration) ? els.player.duration : 0;
+      els.player.currentTime = Math.min(duration, Math.max(0, els.player.currentTime + seconds));
+      updateSeekControls();
+      updatePreview();
     }
 
     function loadVideo(file) {
@@ -903,8 +983,20 @@
     $$("input[name='defaultMode']").forEach(input => input.addEventListener("change", rebuild));
     $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", updateCaptionStyle));
     els.player.addEventListener("timeupdate", updatePreview);
+    els.player.addEventListener("timeupdate", updateSeekControls);
     els.player.addEventListener("seeked", updatePreview);
-    els.player.addEventListener("loadedmetadata", rebuild);
+    els.player.addEventListener("seeked", updateSeekControls);
+    els.player.addEventListener("loadedmetadata", () => {
+      rebuild();
+      updateSeekControls();
+    });
+    els.seekRange.addEventListener("input", () => {
+      els.player.currentTime = Number(els.seekRange.value);
+      updateSeekControls();
+      updatePreview();
+    });
+    els.seekBack.addEventListener("click", () => seekBy(-0.1));
+    els.seekForward.addEventListener("click", () => seekBy(0.1));
     els.render.addEventListener("click", async () => {
       try {
         els.render.disabled = true;
