@@ -15,6 +15,7 @@ COPY index.html server.js render_captions.py ./
 
 ENV HOST=0.0.0.0
 ENV PORT=5175
+ENV VIDEO_DIR=/videos
 ENV PYTHON=python3
 ENV SUBTITLE_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 

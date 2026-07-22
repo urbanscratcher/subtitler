@@ -6,6 +6,7 @@ const { spawn } = require("child_process");
 const PORT = Number(process.env.PORT || 5173);
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = __dirname;
+const VIDEO_DIR = process.env.VIDEO_DIR || path.join(ROOT, "videos");
 const BUNDLED_PYTHON = "/Users/joun/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3";
 const PYTHON = process.env.PYTHON || (fs.existsSync(BUNDLED_PYTHON) ? BUNDLED_PYTHON : "python3");
 
@@ -156,11 +157,10 @@ async function uploadVideo(req, res) {
   const buffer = await readBuffer(req);
   if (!buffer.length) return send(res, 400, { error: "영상 파일이 비어 있습니다." });
 
-  const videosDir = path.join(ROOT, "videos");
-  fs.mkdirSync(videosDir, { recursive: true });
+  fs.mkdirSync(VIDEO_DIR, { recursive: true });
 
   const parsed = path.parse(safeVideoName(req.headers["x-file-name"]));
-  const outputPath = path.join(videosDir, `${parsed.name}-${Date.now()}${parsed.ext.toLowerCase()}`);
+  const outputPath = path.join(VIDEO_DIR, `${parsed.name}-${Date.now()}${parsed.ext.toLowerCase()}`);
   fs.writeFileSync(outputPath, buffer);
   send(res, 200, { path: outputPath });
 }
