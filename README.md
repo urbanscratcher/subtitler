@@ -10,9 +10,12 @@ Export
 Share
 ```
 
+Rendering runs in the browser with `ffmpeg.wasm`. The local Node server only serves static files; videos are not uploaded to the server and exports are saved through the browser download flow.
+
 ## Run
 
 ```sh
+npm install
 npm run start
 ```
 
@@ -37,10 +40,7 @@ Use `default: next` to keep each note visible until the next note starts.
 ## Docker
 
 ```sh
-mkdir -p videos
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:5175`.
-
-In Docker, place videos in `videos` and use paths like `/videos/input.mp4`.
+Open `http://127.0.0.1:3010`.

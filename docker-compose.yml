@@ -2,11 +2,7 @@ services:
   subtitler:
     build: .
     ports:
-      - "5175:5175"
-    volumes:
-      - ./videos:/videos
+      - "3010:5175"
     environment:
       HOST: 0.0.0.0
       PORT: 5175
-      PYTHON: python3
-      SUBTITLE_FONT: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
