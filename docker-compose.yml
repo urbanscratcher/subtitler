@@ -2,7 +2,7 @@ services:
   subtitler:
     build: .
     ports:
-      - "3010:5175"
+      - "3011:5175"
     environment:
       HOST: 0.0.0.0
       PORT: 5175

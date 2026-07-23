@@ -10,7 +10,9 @@ Export
 Share
 ```
 
-Rendering runs in the browser with `ffmpeg.wasm`. The local Node server only serves static files; videos are not uploaded to the server and exports are saved through the browser download flow.
+Rendering runs in the browser with WebCodecs. Mediabunny handles MP4/MOV container parsing while the browser's native codec pipeline decodes and encodes the annotated frames. The local Node server only serves static files; videos are not uploaded to the server and exports are saved through the browser download flow.
+
+Export requires a browser with WebCodecs and H.264 encoding support, such as a current Chrome or Edge release.
 
 ## Run
 
@@ -43,4 +45,4 @@ Use `default: next` to keep each note visible until the next note starts.
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:3010`.
+Open `http://127.0.0.1:3011`.

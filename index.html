@@ -560,11 +560,11 @@
           invalidLine: "Line {line}: use \"time text\"",
           invalidDuration: "Line {line}: duration must be greater than 0",
           invalidVideo: "Use an MP4 or MOV file",
-          loadingFfmpeg: "Loading ffmpeg.wasm…",
+          webCodecsUnsupported: "This browser does not support WebCodecs export. Use the latest Chrome or Edge.",
+          unsupportedMedia: "This video's codec cannot be exported by this browser.",
           exporting: "Exporting… {progress}%",
           addNote: "Add at least one note",
           metadataNotReady: "Video metadata is not ready yet",
-          ffmpegFailed: "ffmpeg exited with code {code}",
           preparingExport: "Preparing export…",
           downloaded: "Downloaded video-annotated.mp4"
         },
@@ -610,11 +610,11 @@
           invalidLine: "{line}번째 줄: \"시간 내용\" 형식으로 입력하세요",
           invalidDuration: "{line}번째 줄: 지속시간은 0보다 커야 합니다",
           invalidVideo: "MP4 또는 MOV 파일을 선택하세요",
-          loadingFfmpeg: "영상 처리 도구 불러오는 중…",
+          webCodecsUnsupported: "이 브라우저는 WebCodecs 내보내기를 지원하지 않습니다. 최신 Chrome 또는 Edge를 사용해주세요.",
+          unsupportedMedia: "이 영상의 코덱은 현재 브라우저에서 내보낼 수 없습니다.",
           exporting: "내보내는 중… {progress}%",
           addNote: "메모를 하나 이상 입력하세요",
           metadataNotReady: "영상 정보를 아직 불러오지 못했습니다",
-          ffmpegFailed: "영상 처리에 실패했습니다 (코드: {code})",
           preparingExport: "내보내기 준비 중…",
           downloaded: "video-annotated.mp4 다운로드 완료"
         }
@@ -641,8 +641,17 @@
   </script>
 
   <script type="module">
-    import { FFmpeg } from "/node_modules/@ffmpeg/ffmpeg/dist/esm/index.js";
-    import { fetchFile } from "/node_modules/@ffmpeg/util/dist/esm/index.js";
+    import {
+      ALL_FORMATS,
+      BlobSource,
+      BufferTarget,
+      Conversion,
+      Input,
+      InputAudioTrack,
+      Mp4OutputFormat,
+      Output,
+      QUALITY_HIGH
+    } from "/node_modules/mediabunny/dist/bundles/mediabunny.mjs";
 
     const $ = selector => document.querySelector(selector);
     const $$ = selector => [...document.querySelectorAll(selector)];
@@ -667,8 +676,6 @@
       status: $("#status")
     };
 
-    const ffmpeg = new FFmpeg();
-    let ffmpegLoaded = false;
     let videoFile = null;
     let videoUrl = "";
     let annotations = [];
@@ -828,65 +835,45 @@
       return lines.length ? lines : [text];
     }
 
-    function canvasBlob(canvas) {
-      return new Promise(resolve => canvas.toBlob(resolve, "image/png"));
-    }
-
-    async function makeCaptionPng(entry, width) {
+    function drawCaption(ctx, entry, width, height, opacity) {
       const style = selectedCaptionStyle();
       const fontSize = Math.max(26, Math.round(width * 0.034));
       const lineHeight = Math.round(fontSize * 1.35);
       const padX = Math.round(width * 0.04);
       const maxTextWidth = width - padX * 2;
-      const probe = document.createElement("canvas");
-      const probeCtx = probe.getContext("2d");
-      probeCtx.font = `700 ${fontSize}px Pretendard, sans-serif`;
-      const lines = wrapText(probeCtx, entry.text, maxTextWidth);
-      const height = Math.max(Math.round(width * 0.11), lineHeight * lines.length + 24);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
       ctx.font = `700 ${fontSize}px Pretendard, sans-serif`;
+      const lines = wrapText(ctx, entry.text, maxTextWidth);
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.lineJoin = "round";
       ctx.lineWidth = Math.max(4, Math.round(width * 0.006));
       ctx.strokeStyle = style.stroke;
       ctx.fillStyle = style.fill;
+      ctx.globalAlpha = opacity;
 
-      let y = Math.round((height - lineHeight * lines.length) / 2);
+      let y = Math.round(height - height * 0.055 - lineHeight * lines.length);
       for (const line of lines) {
         ctx.strokeText(line, width / 2, y);
         ctx.fillText(line, width / 2, y);
         y += lineHeight;
       }
-
-      return new Uint8Array(await (await canvasBlob(canvas)).arrayBuffer());
+      ctx.globalAlpha = 1;
     }
 
-    async function ensureFfmpeg() {
-      if (ffmpegLoaded) return;
-      setStatus(t("loadingFfmpeg"));
-      ffmpeg.on("progress", ({ progress }) => {
-        if (Number.isFinite(progress)) setStatus(t("exporting", { progress: Math.round(progress * 100) }));
-      });
-      ffmpeg.on("log", ({ message }) => {
-        console.debug(message);
-      });
-      const coreBaseURL = `${location.origin}/node_modules/@ffmpeg/core/dist/esm`;
-      await ffmpeg.load({
-        classWorkerURL: `${location.origin}/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js`,
-        coreURL: `${coreBaseURL}/ffmpeg-core.js`,
-        wasmURL: `${coreBaseURL}/ffmpeg-core.wasm`
-      });
-      ffmpegLoaded = true;
+    function captionOpacity(entry, timestamp) {
+      const fade = 0.12;
+      return Math.max(0, Math.min(1, (timestamp - entry.start) / fade, (entry.end - timestamp) / fade));
     }
 
-    function inputName(file) {
-      const ext = file.name.toLowerCase().endsWith(".mov") ? "mov" : "mp4";
-      return `input.${ext}`;
+    function downloadBuffer(buffer, fileName) {
+      const url = URL.createObjectURL(new Blob([buffer], { type: "video/mp4" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
     }
 
     async function exportVideo() {
@@ -895,59 +882,59 @@
       if (!annotations.length) throw new Error(t("addNote"));
       if (!els.player.videoWidth) throw new Error(t("metadataNotReady"));
 
-      await document.fonts.ready;
-      await ensureFfmpeg();
-
-      const inName = inputName(videoFile);
-      const outName = "video-annotated.mp4";
-      await ffmpeg.writeFile(inName, await fetchFile(videoFile));
-
-      const args = ["-y", "-i", inName];
-      for (let index = 0; index < annotations.length; index += 1) {
-        const name = `caption-${index}.png`;
-        await ffmpeg.writeFile(name, await makeCaptionPng(annotations[index], els.player.videoWidth));
-        args.push("-loop", "1", "-i", name);
+      if (!("VideoDecoder" in window) || !("VideoEncoder" in window) || !("VideoFrame" in window)) {
+        throw new Error(t("webCodecsUnsupported"));
       }
 
-      let input = "[0:v]";
-      const filters = annotations.map((entry, index) => {
-        const caption = `[cap${index}]`;
-        const output = index === annotations.length - 1 ? "[vout]" : `[v${index + 1}]`;
-        const fadeOutStart = Math.max(entry.start, entry.end - 0.12);
-        const enable = `between(t\\,${entry.start}\\,${entry.end})`;
-        const filter = [
-          `[${index + 1}:v]format=rgba,fade=t=in:st=${entry.start}:d=0.12:alpha=1,fade=t=out:st=${fadeOutStart}:d=0.12:alpha=1${caption}`,
-          `${input}${caption}overlay=x=0:y=H-h-32:shortest=1:enable='${enable}'${output}`
-        ].join(";");
-        input = output;
-        return filter;
-      }).join(";");
+      await document.fonts.ready;
 
-      const exitCode = await ffmpeg.exec([
-        ...args,
-        "-filter_complex", filters,
-        "-map", "[vout]",
-        "-map", "0:a?",
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        "-shortest",
-        "-movflags", "+faststart",
-        outName
-      ]);
-      if (exitCode !== 0) throw new Error(t("ffmpegFailed", { code: exitCode }));
+      const input = new Input({ source: new BlobSource(videoFile), formats: ALL_FORMATS });
+      const target = new BufferTarget();
+      const output = new Output({
+        format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+        target
+      });
+      let canvas = null;
+      let ctx = null;
 
-      const data = await ffmpeg.readFile(outName);
-      const url = URL.createObjectURL(new Blob([data.buffer], { type: "video/mp4" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = outName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      const conversion = await Conversion.init({
+        input,
+        output,
+        tracks: "primary",
+        video: {
+          codec: "avc",
+          bitrate: QUALITY_HIGH,
+          keyFrameInterval: 2,
+          hardwareAcceleration: "prefer-hardware",
+          process: sample => {
+            if (!canvas || canvas.width !== sample.displayWidth || canvas.height !== sample.displayHeight) {
+              canvas = document.createElement("canvas");
+              canvas.width = sample.displayWidth;
+              canvas.height = sample.displayHeight;
+              ctx = canvas.getContext("2d", { alpha: false });
+            }
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            sample.draw(ctx, 0, 0, canvas.width, canvas.height);
+            for (const entry of annotations) {
+              if (sample.timestamp >= entry.start && sample.timestamp <= entry.end) {
+                drawCaption(ctx, entry, canvas.width, canvas.height, captionOpacity(entry, sample.timestamp));
+              }
+            }
+            return canvas;
+          }
+        },
+        audio: {}
+      });
+
+      const audioWasDropped = conversion.discardedTracks.some(({ track }) => track instanceof InputAudioTrack);
+      if (!conversion.isValid || audioWasDropped) throw new Error(t("unsupportedMedia"));
+
+      conversion.onProgress = progress => {
+        if (Number.isFinite(progress)) setStatus(t("exporting", { progress: Math.round(progress * 100) }));
+      };
+      await conversion.execute();
+      downloadBuffer(target.buffer, "video-annotated.mp4");
     }
 
     els.drop.addEventListener("click", () => els.fileInput.click());
