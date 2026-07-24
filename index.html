@@ -30,6 +30,13 @@
       --radius: 12px;
       --caption-fill: #000000;
       --caption-stroke: #ffffff;
+      --caption-stroke-width: 3px;
+      --caption-background: transparent;
+      --caption-shadow: none;
+      --caption-accent: transparent;
+      --caption-weight: 700;
+      --caption-font-size: 4.2vw;
+      --caption-bottom: 8%;
     }
     body {
       margin: 0;
@@ -196,18 +203,27 @@
       position: absolute;
       left: 5%;
       right: 5%;
-      bottom: 8%;
+      bottom: var(--caption-bottom);
       text-align: center;
       pointer-events: none;
       opacity: 0;
       transition: opacity 120ms linear;
       color: var(--caption-fill);
-      -webkit-text-stroke: clamp(2px, .35vw, 5px) var(--caption-stroke);
+      -webkit-text-stroke: var(--caption-stroke-width) var(--caption-stroke);
       paint-order: stroke fill;
-      font-size: clamp(26px, 4.2vw, 58px);
+      font-size: clamp(22px, var(--caption-font-size), 62px);
       line-height: 1.12;
-      font-weight: 700;
+      font-weight: var(--caption-weight);
+      text-shadow: var(--caption-shadow);
       overflow-wrap: anywhere;
+    }
+    .caption-preview > span {
+      padding: .12em .32em .16em;
+      border-radius: .18em;
+      border-left: .14em solid var(--caption-accent);
+      background: var(--caption-background);
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
     .caption-preview.visible { opacity: 1; }
     .seek-controls {
@@ -324,6 +340,77 @@
       outline: 2px solid var(--ring);
       outline-offset: 1px;
     }
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .preset { position: relative; cursor: pointer; }
+    .preset input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .preset-tile {
+      display: grid;
+      gap: 7px;
+      min-height: 94px;
+      padding: 7px 7px 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--muted-foreground);
+      font-size: 11px;
+      font-weight: 500;
+      text-align: center;
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+    .preset-sample {
+      position: relative;
+      display: grid;
+      place-items: end center;
+      height: 56px;
+      padding: 0 4px 7px;
+      overflow: hidden;
+      border-radius: 5px;
+      background:
+        radial-gradient(circle at 76% 32%, #f4c7a1 0 8%, transparent 9%),
+        linear-gradient(108deg, transparent 0 51%, rgba(20, 30, 42, .75) 52% 68%, transparent 69%),
+        linear-gradient(155deg, #b7d8eb 0 45%, #d9c6a2 46% 68%, #455a48 69% 100%);
+      color: var(--sample-fill);
+      font-size: var(--sample-size, 12px);
+      font-weight: var(--sample-weight, 800);
+      letter-spacing: -.03em;
+      text-shadow: var(--sample-shadow, none);
+      -webkit-text-stroke: var(--sample-stroke-width, 1px) var(--sample-stroke, transparent);
+      paint-order: stroke fill;
+    }
+    .preset-sample::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 35%, rgba(0, 0, 0, .18));
+      pointer-events: none;
+    }
+    .preset-sample span {
+      position: relative;
+      z-index: 1;
+      max-width: 100%;
+      padding: 2px 4px;
+      border-radius: 2px;
+      background: var(--sample-bg, transparent);
+      border-left: 3px solid var(--sample-accent, transparent);
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .preset input:checked + .preset-tile {
+      border-color: var(--primary);
+      background: var(--muted);
+      box-shadow: 0 0 0 1px var(--primary);
+      color: var(--foreground);
+    }
+    .preset input:focus-visible + .preset-tile { outline: 2px solid var(--ring); outline-offset: 2px; }
     button {
       display: inline-flex;
       align-items: center;
@@ -358,6 +445,12 @@
       margin-top: 10px;
       color: var(--muted-foreground);
       font-size: 12px;
+    }
+    .duration-guide {
+      margin: 7px 0 0;
+      color: var(--muted-foreground);
+      font-size: 11px;
+      line-height: 1.45;
     }
     code {
       padding: 2px 5px;
@@ -409,6 +502,7 @@
       .file-name { order: -1; flex-basis: 100%; }
       .card-footer button { width: 100%; }
       .format-guide { align-items: flex-start; flex-direction: column; }
+      .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -434,7 +528,7 @@
         </div>
         <div class="video-shell" id="dropZone">
           <video id="player" controls></video>
-          <div class="caption-preview" id="captionPreview"></div>
+          <div class="caption-preview" id="captionPreview"><span></span></div>
           <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose a video or drop it here" data-i18n-aria-label="dropAriaLabel">
             <div>
               <div class="upload-mark" aria-hidden="true">+</div>
@@ -475,6 +569,7 @@
               <span data-i18n="format">Format</span>
               <span><code data-i18n="formatTime">time</code> <code data-i18n="formatDuration">duration?</code> <code data-i18n="formatComment">comment</code></span>
             </div>
+            <p class="duration-guide" data-i18n="durationGuide">If duration is omitted, the note stays until the next note. The last note appears for 3 seconds.</p>
           </div>
         </section>
 
@@ -488,18 +583,14 @@
           <div class="card-content">
             <div class="field-group">
               <fieldset>
-                <legend data-i18n="defaultDuration">Default duration</legend>
-                <div class="toggle-group">
-                  <label class="toggle"><input type="radio" name="defaultMode" value="1" checked /><span data-i18n="oneSecond">1 second</span></label>
-                  <label class="toggle"><input type="radio" name="defaultMode" value="next" /><span data-i18n="untilNextNote">Until next note</span></label>
-                </div>
-              </fieldset>
-
-              <fieldset>
                 <legend data-i18n="captionStyle">Caption style</legend>
-                <div class="toggle-group">
-                  <label class="toggle"><input type="radio" name="captionStyle" value="black" checked /><span>Black / White</span></label>
-                  <label class="toggle"><input type="radio" name="captionStyle" value="white" /><span>White / Black</span></label>
+                <div class="preset-grid">
+                  <label class="preset"><input type="radio" name="captionStyle" value="classic" checked /><span class="preset-tile"><span class="preset-sample" style="--sample-fill:#fff;--sample-stroke:#000;--sample-stroke-width:2px"><span data-i18n="presetSample">미리보기 자막</span></span><span data-i18n="presetClassic">Classic</span></span></label>
+                  <label class="preset"><input type="radio" name="captionStyle" value="clean" /><span class="preset-tile"><span class="preset-sample" style="--sample-fill:#fff;--sample-bg:rgba(0,0,0,.78);--sample-weight:600"><span data-i18n="presetSample">미리보기 자막</span></span><span data-i18n="presetClean">Clean box</span></span></label>
+                  <label class="preset"><input type="radio" name="captionStyle" value="impact" /><span class="preset-tile"><span class="preset-sample" style="--sample-fill:#fff;--sample-stroke:#000;--sample-stroke-width:2px;--sample-size:14px"><span data-i18n="presetSampleImpact">강조 자막</span></span><span data-i18n="presetImpact">Impact</span></span></label>
+                  <label class="preset"><input type="radio" name="captionStyle" value="pop" /><span class="preset-tile"><span class="preset-sample" style="--sample-fill:#fff;--sample-stroke:#111;--sample-stroke-width:1.5px;--sample-shadow:0 2px 3px #000;--sample-size:13px"><span data-i18n="presetSample">미리보기 자막</span></span><span data-i18n="presetPop">Soft outline</span></span></label>
+                  <label class="preset"><input type="radio" name="captionStyle" value="minimal" /><span class="preset-tile"><span class="preset-sample" style="--sample-fill:#fff;--sample-bg:rgba(9,9,11,.9);--sample-weight:700"><span data-i18n="presetSample">미리보기 자막</span></span><span data-i18n="presetMinimal">High contrast</span></span></label>
+                  <label class="preset"><input type="radio" name="captionStyle" value="cinema" /><span class="preset-tile"><span class="preset-sample" style="--sample-fill:#fff;--sample-bg:rgba(15,23,42,.9);--sample-accent:#38bdf8;--sample-weight:700"><span data-i18n="presetSampleCinema">핵심 내용을 강조</span></span><span data-i18n="presetCinema">Editorial bar</span></span></label>
                 </div>
               </fieldset>
 
@@ -541,12 +632,19 @@
           formatTime: "time",
           formatDuration: "duration?",
           formatComment: "comment",
+          durationGuide: "If duration is omitted, the note stays until the next note. The last note appears for 3 seconds.",
           exportSettingsTitle: "Export settings",
           exportSettingsDescription: "Choose how notes appear in the final video.",
-          defaultDuration: "Default duration",
-          oneSecond: "1 second",
-          untilNextNote: "Until next note",
           captionStyle: "Caption style",
+          presetSample: "Preview caption",
+          presetSampleImpact: "BIG MOMENT",
+          presetSampleCinema: "Highlight the point",
+          presetClassic: "Classic",
+          presetClean: "Clean box",
+          presetImpact: "Impact",
+          presetPop: "Soft outline",
+          presetMinimal: "High contrast",
+          presetCinema: "Editorial bar",
           exportButton: "Export annotated video",
           privacyNote: "Your video stays on this device.",
           noteCount: "{count} notes",
@@ -591,12 +689,19 @@
           formatTime: "시간",
           formatDuration: "지속시간?",
           formatComment: "내용",
+          durationGuide: "지속시간을 생략하면 다음 메모까지 표시되며, 마지막 메모는 기본 3초 동안 표시됩니다.",
           exportSettingsTitle: "내보내기 설정",
           exportSettingsDescription: "완성 영상에 메모가 표시되는 방식을 선택하세요.",
-          defaultDuration: "기본 표시 시간",
-          oneSecond: "1초",
-          untilNextNote: "다음 메모까지",
           captionStyle: "자막 스타일",
+          presetSample: "미리보기 자막",
+          presetSampleImpact: "강조 자막",
+          presetSampleCinema: "핵심 내용을 강조",
+          presetClassic: "클래식",
+          presetClean: "깔끔한 박스",
+          presetImpact: "임팩트",
+          presetPop: "소프트 아웃라인",
+          presetMinimal: "하이 콘트라스트",
+          presetCinema: "에디토리얼 바",
           exportButton: "메모가 포함된 영상 내보내기",
           privacyNote: "영상은 이 기기 밖으로 전송되지 않습니다.",
           noteCount: "메모 {count}개",
@@ -661,6 +766,7 @@
       dropZone: $("#dropZone"),
       drop: $("#drop"),
       captionPreview: $("#captionPreview"),
+      captionText: $("#captionPreview span"),
       seekControls: $("#seekControls"),
       seekRange: $("#seekRange"),
       seekBack: $("#seekBack"),
@@ -679,27 +785,38 @@
     let videoFile = null;
     let videoUrl = "";
     let annotations = [];
-    const fallbackDuration = 1;
+    const fallbackDuration = 3;
+    const captionPresets = {
+      classic: { fill: "#ffffff", stroke: "#000000", strokeScale: .006, weight: 800, size: 1, bottom: .055 },
+      clean: { fill: "#ffffff", stroke: "transparent", strokeScale: 0, weight: 600, size: .88, bottom: .06, background: "rgba(0, 0, 0, .78)", padX: .018, padY: .009 },
+      impact: { fill: "#ffffff", stroke: "#000000", strokeScale: .008, weight: 900, size: 1.18, bottom: .09, uppercase: true, shadow: "0 3px 2px rgba(0,0,0,.35)" },
+      pop: { fill: "#ffffff", stroke: "#111111", strokeScale: .0045, weight: 750, size: .94, bottom: .07, shadow: "0 2px 4px rgba(0,0,0,.8)" },
+      minimal: { fill: "#ffffff", stroke: "transparent", strokeScale: 0, weight: 700, size: .88, bottom: .065, background: "rgba(9, 9, 11, .9)", padX: .018, padY: .009 },
+      cinema: { fill: "#ffffff", stroke: "transparent", strokeScale: 0, weight: 700, size: .88, bottom: .075, background: "rgba(15, 23, 42, .92)", accent: "#38bdf8", padX: .02, padY: .01 }
+    };
 
     function setStatus(message, tone = "") {
       els.status.textContent = message;
       els.status.className = `status ${tone}`.trim();
     }
 
-    function selectedDefault() {
-      return document.querySelector("input[name='defaultMode']:checked").value;
-    }
-
     function selectedCaptionStyle() {
-      return document.querySelector("input[name='captionStyle']:checked").value === "white"
-        ? { fill: "#ffffff", stroke: "#000000" }
-        : { fill: "#000000", stroke: "#ffffff" };
+      const key = document.querySelector("input[name='captionStyle']:checked")?.value || "classic";
+      return captionPresets[key] || captionPresets.classic;
     }
 
     function updateCaptionStyle() {
       const style = selectedCaptionStyle();
       document.documentElement.style.setProperty("--caption-fill", style.fill);
       document.documentElement.style.setProperty("--caption-stroke", style.stroke);
+      document.documentElement.style.setProperty("--caption-stroke-width", `${Math.max(0, style.strokeScale * 560)}px`);
+      document.documentElement.style.setProperty("--caption-background", style.background || "transparent");
+      document.documentElement.style.setProperty("--caption-shadow", style.shadow || "none");
+      document.documentElement.style.setProperty("--caption-accent", style.accent || "transparent");
+      document.documentElement.style.setProperty("--caption-weight", style.weight);
+      document.documentElement.style.setProperty("--caption-font-size", `${4.2 * style.size}vw`);
+      document.documentElement.style.setProperty("--caption-bottom", `${style.bottom * 100}%`);
+      els.captionPreview.style.textTransform = style.uppercase ? "uppercase" : "none";
     }
 
     function parseTime(value) {
@@ -714,18 +831,11 @@
     }
 
     function parseNotes() {
-      let defaultRule = selectedDefault();
       const parsed = [];
 
       els.source.value.split(/\r?\n/).forEach((line, index) => {
         const text = line.trim();
         if (!text) return;
-
-        const defaultMatch = text.match(/^default\s*:\s*(next|\d+(?:\.\d+)?)$/i);
-        if (defaultMatch) {
-          defaultRule = defaultMatch[1].toLowerCase();
-          return;
-        }
 
         const match = text.match(/^(\S+)(?:\s+(\d+(?:\.\d+)?))?\s+(.+)$/);
         if (!match) throw new Error(t("invalidLine", { line: index + 1 }));
@@ -733,7 +843,6 @@
         parsed.push({
           start: parseTime(match[1]),
           explicitDuration: match[2] ? Number(match[2]) : null,
-          defaultRule,
           text: match[3].trim(),
           line: index + 1
         });
@@ -744,9 +853,7 @@
         const next = parsed[index + 1];
         let duration = entry.explicitDuration;
         if (duration == null) {
-          duration = entry.defaultRule === "next"
-            ? (next ? Math.max(.1, next.start - entry.start) : fallbackDuration)
-            : Number(entry.defaultRule);
+          duration = next ? Math.max(.1, next.start - entry.start) : fallbackDuration;
         }
         if (!Number.isFinite(duration) || duration <= 0) throw new Error(t("invalidDuration", { line: entry.line }));
         return { start: entry.start, duration, end: entry.start + duration, text: entry.text };
@@ -775,7 +882,7 @@
     function updatePreview() {
       const now = els.player.currentTime || 0;
       const active = annotations.find(item => now >= item.start && now <= item.end);
-      els.captionPreview.textContent = active ? active.text : "";
+      els.captionText.textContent = active ? active.text : "";
       els.captionPreview.classList.toggle("visible", Boolean(active));
     }
 
@@ -837,26 +944,48 @@
 
     function drawCaption(ctx, entry, width, height, opacity) {
       const style = selectedCaptionStyle();
-      const fontSize = Math.max(26, Math.round(width * 0.034));
+      const fontSize = Math.max(22, Math.round(width * 0.034 * style.size));
       const lineHeight = Math.round(fontSize * 1.35);
       const padX = Math.round(width * 0.04);
       const maxTextWidth = width - padX * 2;
-      ctx.font = `700 ${fontSize}px Pretendard, sans-serif`;
-      const lines = wrapText(ctx, entry.text, maxTextWidth);
+      ctx.font = `${style.weight} ${fontSize}px Pretendard, sans-serif`;
+      const text = style.uppercase ? entry.text.toUpperCase() : entry.text;
+      const lines = wrapText(ctx, text, maxTextWidth);
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.lineJoin = "round";
-      ctx.lineWidth = Math.max(4, Math.round(width * 0.006));
+      ctx.lineWidth = style.strokeScale ? Math.max(2, Math.round(width * style.strokeScale)) : 0;
       ctx.strokeStyle = style.stroke;
       ctx.fillStyle = style.fill;
       ctx.globalAlpha = opacity;
+      ctx.shadowColor = style.shadow ? "rgba(0, 0, 0, .75)" : "transparent";
+      ctx.shadowBlur = style.shadow ? Math.max(3, width * .004) : 0;
+      ctx.shadowOffsetY = style.shadow ? Math.max(2, width * .002) : 0;
 
-      let y = Math.round(height - height * 0.055 - lineHeight * lines.length);
+      let y = Math.round(height - height * style.bottom - lineHeight * lines.length);
       for (const line of lines) {
-        ctx.strokeText(line, width / 2, y);
+        if (style.background) {
+          const metrics = ctx.measureText(line);
+          const boxPadX = Math.round(width * style.padX);
+          const boxPadY = Math.round(height * style.padY);
+          const boxX = width / 2 - metrics.width / 2 - boxPadX;
+          const boxWidth = metrics.width + boxPadX * 2;
+          ctx.save();
+          ctx.shadowColor = "transparent";
+          ctx.fillStyle = style.background;
+          ctx.fillRect(boxX, y - boxPadY, boxWidth, lineHeight + boxPadY);
+          if (style.accent) {
+            ctx.fillStyle = style.accent;
+            ctx.fillRect(boxX, y - boxPadY, Math.max(5, Math.round(width * .005)), lineHeight + boxPadY);
+          }
+          ctx.restore();
+          ctx.fillStyle = style.fill;
+        }
+        if (ctx.lineWidth) ctx.strokeText(line, width / 2, y);
         ctx.fillText(line, width / 2, y);
         y += lineHeight;
       }
+      ctx.shadowColor = "transparent";
       ctx.globalAlpha = 1;
     }
 
@@ -967,7 +1096,6 @@
       }
     });
     els.source.addEventListener("input", rebuild);
-    $$("input[name='defaultMode']").forEach(input => input.addEventListener("change", rebuild));
     $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", updateCaptionStyle));
     els.player.addEventListener("timeupdate", updatePreview);
     els.player.addEventListener("timeupdate", updateSeekControls);
