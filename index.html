@@ -28,15 +28,6 @@
       --success: #067647;
       --ring: #a1a1aa;
       --radius: 12px;
-      --caption-fill: #000000;
-      --caption-stroke: #ffffff;
-      --caption-stroke-width: 3px;
-      --caption-background: transparent;
-      --caption-shadow: none;
-      --caption-accent: transparent;
-      --caption-weight: 700;
-      --caption-font-size: 4.2vw;
-      --caption-bottom: 8%;
     }
     body {
       margin: 0;
@@ -201,29 +192,10 @@
     .drop.hidden { display: none; }
     .caption-preview {
       position: absolute;
-      left: 5%;
-      right: 5%;
-      bottom: var(--caption-bottom);
-      text-align: center;
+      inset: 0;
       pointer-events: none;
       opacity: 0;
       transition: opacity 120ms linear;
-      color: var(--caption-fill);
-      -webkit-text-stroke: var(--caption-stroke-width) var(--caption-stroke);
-      paint-order: stroke fill;
-      font-size: clamp(22px, var(--caption-font-size), 62px);
-      line-height: 1.12;
-      font-weight: var(--caption-weight);
-      text-shadow: var(--caption-shadow);
-      overflow-wrap: anywhere;
-    }
-    .caption-preview > span {
-      padding: .12em .32em .16em;
-      border-radius: .18em;
-      border-left: .14em solid var(--caption-accent);
-      background: var(--caption-background);
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
     }
     .caption-preview.visible { opacity: 1; }
     .seek-controls {
@@ -411,6 +383,61 @@
       color: var(--foreground);
     }
     .preset input:focus-visible + .preset-tile { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .advanced-style {
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .advanced-style summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--foreground);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      list-style: none;
+    }
+    .advanced-style summary::-webkit-details-marker { display: none; }
+    .advanced-style summary::after {
+      content: "+";
+      color: var(--muted-foreground);
+      font-size: 18px;
+      font-weight: 400;
+      line-height: 1;
+    }
+    .advanced-style[open] summary::after { content: "−"; }
+    .advanced-style-body { padding-top: 12px; }
+    textarea.css-editor {
+      min-height: 170px;
+      padding: 12px;
+      background: #18181b;
+      color: #f4f4f5;
+      border-color: #3f3f46;
+      font-size: 12px;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+    textarea.css-editor::placeholder { color: #a1a1aa; opacity: 1; }
+    .css-editor-footer {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 9px;
+    }
+    .css-help {
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .css-reset {
+      min-height: 30px;
+      padding: 0 10px;
+      flex: 0 0 auto;
+      font-size: 11px;
+    }
     button {
       display: inline-flex;
       align-items: center;
@@ -528,7 +555,7 @@
         </div>
         <div class="video-shell" id="dropZone">
           <video id="player" controls></video>
-          <div class="caption-preview" id="captionPreview"><span></span></div>
+          <div class="caption-preview" id="captionPreview" aria-hidden="true"></div>
           <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose a video or drop it here" data-i18n-aria-label="dropAriaLabel">
             <div>
               <div class="upload-mark" aria-hidden="true">+</div>
@@ -594,6 +621,17 @@
                 </div>
               </fieldset>
 
+              <details class="advanced-style" id="advancedStyle">
+                <summary data-i18n="advancedCssTitle">Advanced: custom CSS</summary>
+                <div class="advanced-style-body">
+                  <textarea class="css-editor" id="customCss" aria-label="Custom caption CSS" data-i18n-aria-label="customCssAriaLabel" data-i18n-placeholder="customCssPlaceholder" spellcheck="false"></textarea>
+                  <div class="css-editor-footer">
+                    <p class="css-help" data-i18n="customCssHelp">Overrides the selected preset. Use .caption, .caption-line, and .caption-word. External URLs are not included in exports.</p>
+                    <button class="secondary css-reset" id="resetCss" type="button" data-i18n="resetCss">Reset</button>
+                  </div>
+                </div>
+              </details>
+
               <button class="full" id="render" type="button" data-i18n="exportButton">Export annotated video</button>
             </div>
             <div class="status" id="status" role="status" aria-live="polite"></div>
@@ -645,6 +683,11 @@
           presetPop: "Soft outline",
           presetMinimal: "High contrast",
           presetCinema: "Editorial bar",
+          advancedCssTitle: "Advanced: custom CSS",
+          customCssAriaLabel: "Custom caption CSS",
+          customCssPlaceholder: ".caption {\n  color: #ffd400;\n  font-size: 5cqw;\n}\n\n.caption-word {\n  letter-spacing: 0.02em;\n}",
+          customCssHelp: "Overrides the selected preset. Use .caption, .caption-line, and .caption-word. External URLs are not included in exports.",
+          resetCss: "Reset",
           exportButton: "Export annotated video",
           privacyNote: "Your video stays on this device.",
           noteCount: "{count} notes",
@@ -660,6 +703,7 @@
           invalidVideo: "Use an MP4 or MOV file",
           webCodecsUnsupported: "This browser does not support WebCodecs export. Use the latest Chrome or Edge.",
           unsupportedMedia: "This video's codec cannot be exported by this browser.",
+          customCssRenderFailed: "The custom caption CSS could not be rendered.",
           exporting: "Exporting… {progress}%",
           addNote: "Add at least one note",
           metadataNotReady: "Video metadata is not ready yet",
@@ -702,6 +746,11 @@
           presetPop: "소프트 아웃라인",
           presetMinimal: "하이 콘트라스트",
           presetCinema: "에디토리얼 바",
+          advancedCssTitle: "고급: CSS로 직접 조정",
+          customCssAriaLabel: "사용자 자막 CSS",
+          customCssPlaceholder: ".caption {\n  color: #ffd400;\n  font-size: 5cqw;\n}\n\n.caption-word {\n  letter-spacing: 0.02em;\n}",
+          customCssHelp: "선택한 프리셋 위에 적용됩니다. .caption, .caption-line, .caption-word를 사용하세요. 외부 URL은 내보내기에 포함되지 않습니다.",
+          resetCss: "초기화",
           exportButton: "메모가 포함된 영상 내보내기",
           privacyNote: "영상은 이 기기 밖으로 전송되지 않습니다.",
           noteCount: "메모 {count}개",
@@ -717,6 +766,7 @@
           invalidVideo: "MP4 또는 MOV 파일을 선택하세요",
           webCodecsUnsupported: "이 브라우저는 WebCodecs 내보내기를 지원하지 않습니다. 최신 Chrome 또는 Edge를 사용해주세요.",
           unsupportedMedia: "이 영상의 코덱은 현재 브라우저에서 내보낼 수 없습니다.",
+          customCssRenderFailed: "사용자 자막 CSS를 렌더링하지 못했습니다.",
           exporting: "내보내는 중… {progress}%",
           addNote: "메모를 하나 이상 입력하세요",
           metadataNotReady: "영상 정보를 아직 불러오지 못했습니다",
@@ -739,6 +789,9 @@
       });
       document.querySelectorAll("[data-i18n-value]").forEach(element => {
         element.value = t(element.dataset.i18nValue);
+      });
+      document.querySelectorAll("[data-i18n-placeholder]").forEach(element => {
+        element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
       });
 
       window.appI18n = { locale, t };
@@ -766,7 +819,6 @@
       dropZone: $("#dropZone"),
       drop: $("#drop"),
       captionPreview: $("#captionPreview"),
-      captionText: $("#captionPreview span"),
       seekControls: $("#seekControls"),
       seekRange: $("#seekRange"),
       seekBack: $("#seekBack"),
@@ -778,6 +830,8 @@
       fileName: $("#fileName"),
       source: $("#source"),
       noteCount: $("#noteCount"),
+      customCss: $("#customCss"),
+      resetCss: $("#resetCss"),
       render: $("#render"),
       status: $("#status")
     };
@@ -786,14 +840,56 @@
     let videoUrl = "";
     let annotations = [];
     const fallbackDuration = 3;
+    const customCssStorageKey = "video-notes.custom-caption-css";
+    const captionBaseCss = `
+      :host { display: block; width: 100%; height: 100%; }
+      *, *::before, *::after { box-sizing: border-box; }
+      .caption-root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        container-type: size;
+        font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .caption {
+        position: absolute;
+        left: 5%;
+        right: 5%;
+        bottom: 5.5%;
+        color: #fff;
+        font-size: 4.2cqw;
+        font-weight: 800;
+        line-height: 1.12;
+        text-align: center;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .caption-line {
+        padding: .12em .32em .16em;
+        border-radius: .18em;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+      }
+      .caption-word { display: inline; }
+    `;
     const captionPresets = {
-      classic: { fill: "#ffffff", stroke: "#000000", strokeScale: .006, weight: 800, size: 1, bottom: .055 },
-      clean: { fill: "#ffffff", stroke: "transparent", strokeScale: 0, weight: 600, size: .88, bottom: .06, background: "rgba(0, 0, 0, .78)", padX: .018, padY: .009 },
-      impact: { fill: "#ffffff", stroke: "#000000", strokeScale: .008, weight: 900, size: 1.18, bottom: .09, uppercase: true, shadow: "0 3px 2px rgba(0,0,0,.35)" },
-      pop: { fill: "#ffffff", stroke: "#111111", strokeScale: .0045, weight: 750, size: .94, bottom: .07, shadow: "0 2px 4px rgba(0,0,0,.8)" },
-      minimal: { fill: "#ffffff", stroke: "transparent", strokeScale: 0, weight: 700, size: .88, bottom: .065, background: "rgba(9, 9, 11, .9)", padX: .018, padY: .009 },
-      cinema: { fill: "#ffffff", stroke: "transparent", strokeScale: 0, weight: 700, size: .88, bottom: .075, background: "rgba(15, 23, 42, .92)", accent: "#38bdf8", padX: .02, padY: .01 }
+      classic: `.caption { -webkit-text-stroke: .14em #000; paint-order: stroke fill; }`,
+      clean: `.caption { bottom: 6%; font-size: 3.7cqw; font-weight: 600; } .caption-line { background: rgba(0, 0, 0, .78); }`,
+      impact: `.caption { bottom: 9%; font-size: 5cqw; font-weight: 900; text-transform: uppercase; -webkit-text-stroke: .16em #000; paint-order: stroke fill; text-shadow: 0 .06em .04em rgba(0, 0, 0, .35); }`,
+      pop: `.caption { bottom: 7%; font-size: 3.95cqw; font-weight: 750; -webkit-text-stroke: .1em #111; paint-order: stroke fill; text-shadow: 0 .05em .1em rgba(0, 0, 0, .8); }`,
+      minimal: `.caption { bottom: 6.5%; font-size: 3.7cqw; font-weight: 700; } .caption-line { background: rgba(9, 9, 11, .9); }`,
+      cinema: `.caption { bottom: 7.5%; font-size: 3.7cqw; font-weight: 700; } .caption-line { background: rgba(15, 23, 42, .92); border-left: .14em solid #38bdf8; }`
     };
+
+    const captionShadow = els.captionPreview.attachShadow({ mode: "open" });
+    captionShadow.innerHTML = `<style id="captionStyles"></style><div class="caption-root"><div class="caption" id="previewCaption"></div></div>`;
+    const previewCaption = captionShadow.querySelector("#previewCaption");
+    const previewCaptionStyles = captionShadow.querySelector("#captionStyles");
+    let previewedEntry = null;
+    try {
+      els.customCss.value = localStorage.getItem(customCssStorageKey) || "";
+    } catch (_) {}
 
     function setStatus(message, tone = "") {
       els.status.textContent = message;
@@ -805,18 +901,19 @@
       return captionPresets[key] || captionPresets.classic;
     }
 
+    function safeCustomCss() {
+      return els.customCss.value
+        .replace(/@import\s+[^;]+;?/gi, "")
+        .replace(/url\(\s*(['"]?)(?!data:).*?\1\s*\)/gi, "none");
+    }
+
+    function currentCaptionCss() {
+      return `${captionBaseCss}\n${selectedCaptionStyle()}\n${safeCustomCss()}`;
+    }
+
     function updateCaptionStyle() {
-      const style = selectedCaptionStyle();
-      document.documentElement.style.setProperty("--caption-fill", style.fill);
-      document.documentElement.style.setProperty("--caption-stroke", style.stroke);
-      document.documentElement.style.setProperty("--caption-stroke-width", `${Math.max(0, style.strokeScale * 560)}px`);
-      document.documentElement.style.setProperty("--caption-background", style.background || "transparent");
-      document.documentElement.style.setProperty("--caption-shadow", style.shadow || "none");
-      document.documentElement.style.setProperty("--caption-accent", style.accent || "transparent");
-      document.documentElement.style.setProperty("--caption-weight", style.weight);
-      document.documentElement.style.setProperty("--caption-font-size", `${4.2 * style.size}vw`);
-      document.documentElement.style.setProperty("--caption-bottom", `${style.bottom * 100}%`);
-      els.captionPreview.style.textTransform = style.uppercase ? "uppercase" : "none";
+      previewCaptionStyles.textContent = currentCaptionCss();
+      els.resetCss.disabled = !els.customCss.value;
     }
 
     function parseTime(value) {
@@ -879,11 +976,58 @@
       }
     }
 
+    function setCaptionContent(target, text) {
+      target.replaceChildren();
+      const lines = text.split(/\r?\n/);
+      lines.forEach((rawLine, lineIndex) => {
+        const line = document.createElement("span");
+        line.className = "caption-line";
+        for (const token of rawLine.split(/(\s+)/)) {
+          if (!token) continue;
+          if (/^\s+$/.test(token)) {
+            line.append(document.createTextNode(token));
+          } else {
+            const word = document.createElement("span");
+            word.className = "caption-word";
+            word.textContent = token;
+            line.append(word);
+          }
+        }
+        target.append(line);
+        if (lineIndex < lines.length - 1) target.append(document.createElement("br"));
+      });
+    }
+
     function updatePreview() {
       const now = els.player.currentTime || 0;
       const active = annotations.find(item => now >= item.start && now <= item.end);
-      els.captionText.textContent = active ? active.text : "";
+      if (active !== previewedEntry) {
+        setCaptionContent(previewCaption, active ? active.text : "");
+        previewedEntry = active || null;
+      }
       els.captionPreview.classList.toggle("visible", Boolean(active));
+    }
+
+    function syncCaptionPreviewFrame() {
+      const shellWidth = els.dropZone.clientWidth;
+      const shellHeight = els.dropZone.clientHeight;
+      const videoWidth = els.player.videoWidth;
+      const videoHeight = els.player.videoHeight;
+      if (!shellWidth || !shellHeight || !videoWidth || !videoHeight) {
+        els.captionPreview.style.cssText = "";
+        return;
+      }
+
+      const shellAspect = shellWidth / shellHeight;
+      const videoAspect = videoWidth / videoHeight;
+      const width = videoAspect > shellAspect ? shellWidth : shellHeight * videoAspect;
+      const height = videoAspect > shellAspect ? shellWidth / videoAspect : shellHeight;
+      els.captionPreview.style.left = `${(shellWidth - width) / 2}px`;
+      els.captionPreview.style.top = `${(shellHeight - height) / 2}px`;
+      els.captionPreview.style.right = "auto";
+      els.captionPreview.style.bottom = "auto";
+      els.captionPreview.style.width = `${width}px`;
+      els.captionPreview.style.height = `${height}px`;
     }
 
     function formatPlaybackTime(seconds) {
@@ -924,69 +1068,51 @@
       rebuild();
     }
 
-    function wrapText(ctx, text, maxWidth) {
-      const lines = [];
-      for (const rawLine of text.split(/\r?\n/) || [""]) {
-        let current = "";
-        for (const char of rawLine) {
-          const candidate = current + char;
-          if (ctx.measureText(candidate).width <= maxWidth) {
-            current = candidate;
-          } else {
-            if (current) lines.push(current);
-            current = char;
-          }
-        }
-        if (current) lines.push(current);
-      }
-      return lines.length ? lines : [text];
+    function escapeXml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
     }
 
-    function drawCaption(ctx, entry, width, height, opacity) {
-      const style = selectedCaptionStyle();
-      const fontSize = Math.max(22, Math.round(width * 0.034 * style.size));
-      const lineHeight = Math.round(fontSize * 1.35);
-      const padX = Math.round(width * 0.04);
-      const maxTextWidth = width - padX * 2;
-      ctx.font = `${style.weight} ${fontSize}px Pretendard, sans-serif`;
-      const text = style.uppercase ? entry.text.toUpperCase() : entry.text;
-      const lines = wrapText(ctx, text, maxTextWidth);
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.lineJoin = "round";
-      ctx.lineWidth = style.strokeScale ? Math.max(2, Math.round(width * style.strokeScale)) : 0;
-      ctx.strokeStyle = style.stroke;
-      ctx.fillStyle = style.fill;
-      ctx.globalAlpha = opacity;
-      ctx.shadowColor = style.shadow ? "rgba(0, 0, 0, .75)" : "transparent";
-      ctx.shadowBlur = style.shadow ? Math.max(3, width * .004) : 0;
-      ctx.shadowOffsetY = style.shadow ? Math.max(2, width * .002) : 0;
+    function captionMarkup(text) {
+      return text.split(/\r?\n/).map(rawLine => {
+        const words = rawLine.split(/(\s+)/).map(token => {
+          if (!token) return "";
+          return /^\s+$/.test(token)
+            ? escapeXml(token)
+            : `<span class="caption-word">${escapeXml(token)}</span>`;
+        }).join("");
+        return `<span class="caption-line">${words}</span>`;
+      }).join("<br />");
+    }
 
-      let y = Math.round(height - height * style.bottom - lineHeight * lines.length);
-      for (const line of lines) {
-        if (style.background) {
-          const metrics = ctx.measureText(line);
-          const boxPadX = Math.round(width * style.padX);
-          const boxPadY = Math.round(height * style.padY);
-          const boxX = width / 2 - metrics.width / 2 - boxPadX;
-          const boxWidth = metrics.width + boxPadX * 2;
-          ctx.save();
-          ctx.shadowColor = "transparent";
-          ctx.fillStyle = style.background;
-          ctx.fillRect(boxX, y - boxPadY, boxWidth, lineHeight + boxPadY);
-          if (style.accent) {
-            ctx.fillStyle = style.accent;
-            ctx.fillRect(boxX, y - boxPadY, Math.max(5, Math.round(width * .005)), lineHeight + boxPadY);
-          }
-          ctx.restore();
-          ctx.fillStyle = style.fill;
-        }
-        if (ctx.lineWidth) ctx.strokeText(line, width / 2, y);
-        ctx.fillText(line, width / 2, y);
-        y += lineHeight;
+    async function rasterizeCaption(entry, width, height, css) {
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <foreignObject x="0" y="0" width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="caption-root">
+              <style>${escapeXml(css)}</style>
+              <div class="caption">${captionMarkup(entry.text)}</div>
+            </div>
+          </foreignObject>
+        </svg>`;
+      const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+      try {
+        const image = new Image();
+        image.width = width;
+        image.height = height;
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = () => reject(new Error(t("customCssRenderFailed")));
+          image.src = url;
+        });
+        return await createImageBitmap(image);
+      } finally {
+        URL.revokeObjectURL(url);
       }
-      ctx.shadowColor = "transparent";
-      ctx.globalAlpha = 1;
     }
 
     function captionOpacity(entry, timestamp) {
@@ -1025,6 +1151,16 @@
       });
       let canvas = null;
       let ctx = null;
+      const captionCss = currentCaptionCss();
+      const captionBitmaps = new Map();
+
+      const bitmapFor = (entry, width, height) => {
+        const key = `${width}x${height}:${entry.start}:${entry.end}:${entry.text}`;
+        if (!captionBitmaps.has(key)) {
+          captionBitmaps.set(key, rasterizeCaption(entry, width, height, captionCss));
+        }
+        return captionBitmaps.get(key);
+      };
 
       const conversion = await Conversion.init({
         input,
@@ -1035,7 +1171,7 @@
           bitrate: QUALITY_HIGH,
           keyFrameInterval: 2,
           hardwareAcceleration: "prefer-hardware",
-          process: sample => {
+          process: async sample => {
             if (!canvas || canvas.width !== sample.displayWidth || canvas.height !== sample.displayHeight) {
               canvas = document.createElement("canvas");
               canvas.width = sample.displayWidth;
@@ -1047,7 +1183,10 @@
             sample.draw(ctx, 0, 0, canvas.width, canvas.height);
             for (const entry of annotations) {
               if (sample.timestamp >= entry.start && sample.timestamp <= entry.end) {
-                drawCaption(ctx, entry, canvas.width, canvas.height, captionOpacity(entry, sample.timestamp));
+                const bitmap = await bitmapFor(entry, canvas.width, canvas.height);
+                ctx.globalAlpha = captionOpacity(entry, sample.timestamp);
+                ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1;
               }
             }
             return canvas;
@@ -1062,8 +1201,15 @@
       conversion.onProgress = progress => {
         if (Number.isFinite(progress)) setStatus(t("exporting", { progress: Math.round(progress * 100) }));
       };
-      await conversion.execute();
-      downloadBuffer(target.buffer, "video-annotated.mp4");
+      try {
+        await conversion.execute();
+        downloadBuffer(target.buffer, "video-annotated.mp4");
+      } finally {
+        const bitmaps = await Promise.allSettled(captionBitmaps.values());
+        for (const result of bitmaps) {
+          if (result.status === "fulfilled") result.value.close();
+        }
+      }
     }
 
     els.drop.addEventListener("click", () => els.fileInput.click());
@@ -1097,6 +1243,28 @@
     });
     els.source.addEventListener("input", rebuild);
     $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", updateCaptionStyle));
+    els.customCss.addEventListener("input", () => {
+      updateCaptionStyle();
+      try {
+        localStorage.setItem(customCssStorageKey, els.customCss.value);
+      } catch (_) {}
+    });
+    els.customCss.addEventListener("keydown", event => {
+      if (event.key !== "Tab") return;
+      event.preventDefault();
+      const start = els.customCss.selectionStart;
+      const end = els.customCss.selectionEnd;
+      els.customCss.setRangeText("  ", start, end, "end");
+      els.customCss.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    els.resetCss.addEventListener("click", () => {
+      els.customCss.value = "";
+      updateCaptionStyle();
+      try {
+        localStorage.removeItem(customCssStorageKey);
+      } catch (_) {}
+      els.customCss.focus();
+    });
     els.player.addEventListener("timeupdate", updatePreview);
     els.player.addEventListener("timeupdate", updateSeekControls);
     els.player.addEventListener("seeked", updatePreview);
@@ -1104,6 +1272,7 @@
     els.player.addEventListener("loadedmetadata", () => {
       rebuild();
       updateSeekControls();
+      syncCaptionPreviewFrame();
     });
     els.seekRange.addEventListener("input", () => {
       els.player.currentTime = Number(els.seekRange.value);
@@ -1128,6 +1297,7 @@
       }
     });
 
+    new ResizeObserver(syncCaptionPreviewFrame).observe(els.dropZone);
     updateCaptionStyle();
     rebuild();
   </script>
