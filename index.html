@@ -626,8 +626,8 @@
                 <div class="advanced-style-body">
                   <textarea class="css-editor" id="customCss" aria-label="Custom caption CSS" data-i18n-aria-label="customCssAriaLabel" data-i18n-placeholder="customCssPlaceholder" spellcheck="false"></textarea>
                   <div class="css-editor-footer">
-                    <p class="css-help" data-i18n="customCssHelp">Overrides the selected preset. Use .caption, .caption-line, and .caption-word. External URLs are not included in exports.</p>
-                    <button class="secondary css-reset" id="resetCss" type="button" data-i18n="resetCss">Reset</button>
+                    <p class="css-help" data-i18n="customCssHelp">Selecting a preset loads its CSS here. Edit .caption, .caption-line, and .caption-word to customize it.</p>
+                    <button class="secondary css-reset" id="resetCss" type="button" data-i18n="resetCss">Restore preset</button>
                   </div>
                 </div>
               </details>
@@ -686,8 +686,8 @@
           advancedCssTitle: "Advanced: custom CSS",
           customCssAriaLabel: "Custom caption CSS",
           customCssPlaceholder: ".caption {\n  color: #ffd400;\n  font-size: 5cqw;\n}\n\n.caption-word {\n  letter-spacing: 0.02em;\n}",
-          customCssHelp: "Overrides the selected preset. Use .caption, .caption-line, and .caption-word. External URLs are not included in exports.",
-          resetCss: "Reset",
+          customCssHelp: "Selecting a preset loads its CSS here. Edit .caption, .caption-line, and .caption-word to customize it. External URLs are ignored.",
+          resetCss: "Restore preset",
           exportButton: "Export annotated video",
           privacyNote: "Your video stays on this device.",
           noteCount: "{count} notes",
@@ -749,8 +749,8 @@
           advancedCssTitle: "고급: CSS로 직접 조정",
           customCssAriaLabel: "사용자 자막 CSS",
           customCssPlaceholder: ".caption {\n  color: #ffd400;\n  font-size: 5cqw;\n}\n\n.caption-word {\n  letter-spacing: 0.02em;\n}",
-          customCssHelp: "선택한 프리셋 위에 적용됩니다. .caption, .caption-line, .caption-word를 사용하세요. 외부 URL은 내보내기에 포함되지 않습니다.",
-          resetCss: "초기화",
+          customCssHelp: "프리셋을 선택하면 해당 CSS가 여기에 불러와집니다. .caption, .caption-line, .caption-word를 직접 수정하세요. 외부 URL은 무시됩니다.",
+          resetCss: "프리셋으로 되돌리기",
           exportButton: "메모가 포함된 영상 내보내기",
           privacyNote: "영상은 이 기기 밖으로 전송되지 않습니다.",
           noteCount: "메모 {count}개",
@@ -839,6 +839,7 @@
     let videoFile = null;
     let videoUrl = "";
     let annotations = [];
+    let activeSourceLine = -1;
     const fallbackDuration = 3;
     const customCssStorageKey = "video-notes.custom-caption-css";
     const captionBaseCss = `
@@ -874,12 +875,70 @@
       .caption-word { display: inline; }
     `;
     const captionPresets = {
-      classic: `.caption { -webkit-text-stroke: .14em #000; paint-order: stroke fill; }`,
-      clean: `.caption { bottom: 6%; font-size: 3.7cqw; font-weight: 600; } .caption-line { background: rgba(0, 0, 0, .78); }`,
-      impact: `.caption { bottom: 9%; font-size: 5cqw; font-weight: 900; text-transform: uppercase; -webkit-text-stroke: .16em #000; paint-order: stroke fill; text-shadow: 0 .06em .04em rgba(0, 0, 0, .35); }`,
-      pop: `.caption { bottom: 7%; font-size: 3.95cqw; font-weight: 750; -webkit-text-stroke: .1em #111; paint-order: stroke fill; text-shadow: 0 .05em .1em rgba(0, 0, 0, .8); }`,
-      minimal: `.caption { bottom: 6.5%; font-size: 3.7cqw; font-weight: 700; } .caption-line { background: rgba(9, 9, 11, .9); }`,
-      cinema: `.caption { bottom: 7.5%; font-size: 3.7cqw; font-weight: 700; } .caption-line { background: rgba(15, 23, 42, .92); border-left: .14em solid #38bdf8; }`
+      classic: `.caption {
+  bottom: 5.5%;
+  color: #fff;
+  font-size: 4.2cqw;
+  font-weight: 800;
+  line-height: 1.12;
+  -webkit-text-stroke: .14em #000;
+  paint-order: stroke fill;
+}`,
+      clean: `.caption {
+  bottom: 6%;
+  color: #fff;
+  font-size: 3.7cqw;
+  font-weight: 600;
+  line-height: 1.12;
+}
+
+.caption-line {
+  background: rgba(0, 0, 0, .78);
+}`,
+      impact: `.caption {
+  bottom: 9%;
+  color: #fff;
+  font-size: 5cqw;
+  font-weight: 900;
+  line-height: 1.12;
+  text-transform: uppercase;
+  -webkit-text-stroke: .16em #000;
+  paint-order: stroke fill;
+  text-shadow: 0 .06em .04em rgba(0, 0, 0, .35);
+}`,
+      pop: `.caption {
+  bottom: 7%;
+  color: #fff;
+  font-size: 3.95cqw;
+  font-weight: 750;
+  line-height: 1.12;
+  -webkit-text-stroke: .1em #111;
+  paint-order: stroke fill;
+  text-shadow: 0 .05em .1em rgba(0, 0, 0, .8);
+}`,
+      minimal: `.caption {
+  bottom: 6.5%;
+  color: #fff;
+  font-size: 3.7cqw;
+  font-weight: 700;
+  line-height: 1.12;
+}
+
+.caption-line {
+  background: rgba(9, 9, 11, .9);
+}`,
+      cinema: `.caption {
+  bottom: 7.5%;
+  color: #fff;
+  font-size: 3.7cqw;
+  font-weight: 700;
+  line-height: 1.12;
+}
+
+.caption-line {
+  background: rgba(15, 23, 42, .92);
+  border-left: .14em solid #38bdf8;
+}`
     };
 
     const captionShadow = els.captionPreview.attachShadow({ mode: "open" });
@@ -887,9 +946,28 @@
     const previewCaption = captionShadow.querySelector("#previewCaption");
     const previewCaptionStyles = captionShadow.querySelector("#captionStyles");
     let previewedEntry = null;
+
     try {
-      els.customCss.value = localStorage.getItem(customCssStorageKey) || "";
-    } catch (_) {}
+      const stored = localStorage.getItem(customCssStorageKey);
+      if (stored) {
+        try {
+          const state = JSON.parse(stored);
+          if (state && captionPresets[state.preset] && typeof state.css === "string") {
+            const presetInput = document.querySelector(`input[name='captionStyle'][value='${state.preset}']`);
+            if (presetInput) presetInput.checked = true;
+            els.customCss.value = state.css;
+          } else {
+            els.customCss.value = selectedCaptionStyle();
+          }
+        } catch (_) {
+          els.customCss.value = stored;
+        }
+      } else {
+        els.customCss.value = selectedCaptionStyle();
+      }
+    } catch (_) {
+      els.customCss.value = selectedCaptionStyle();
+    }
 
     function setStatus(message, tone = "") {
       els.status.textContent = message;
@@ -901,6 +979,19 @@
       return captionPresets[key] || captionPresets.classic;
     }
 
+    function selectedCaptionStyleKey() {
+      return document.querySelector("input[name='captionStyle']:checked")?.value || "classic";
+    }
+
+    function saveCaptionStyleState() {
+      try {
+        localStorage.setItem(customCssStorageKey, JSON.stringify({
+          preset: selectedCaptionStyleKey(),
+          css: els.customCss.value
+        }));
+      } catch (_) {}
+    }
+
     function safeCustomCss() {
       return els.customCss.value
         .replace(/@import\s+[^;]+;?/gi, "")
@@ -908,12 +999,18 @@
     }
 
     function currentCaptionCss() {
-      return `${captionBaseCss}\n${selectedCaptionStyle()}\n${safeCustomCss()}`;
+      return `${captionBaseCss}\n${safeCustomCss()}`;
     }
 
     function updateCaptionStyle() {
       previewCaptionStyles.textContent = currentCaptionCss();
-      els.resetCss.disabled = !els.customCss.value;
+      els.resetCss.disabled = els.customCss.value === selectedCaptionStyle();
+    }
+
+    function loadSelectedPresetCss() {
+      els.customCss.value = selectedCaptionStyle();
+      updateCaptionStyle();
+      saveCaptionStyleState();
     }
 
     function parseTime(value) {
@@ -1052,6 +1149,35 @@
       els.player.currentTime = Math.min(duration, Math.max(0, els.player.currentTime + seconds));
       updateSeekControls();
       updatePreview();
+    }
+
+    function sourceLineAtCaret() {
+      const caret = els.source.selectionDirection === "backward"
+        ? els.source.selectionStart
+        : els.source.selectionEnd;
+      return els.source.value.slice(0, caret).split(/\r?\n/).length - 1;
+    }
+
+    function seekToSourceLine(line) {
+      if (line < 0 || !videoFile || els.player.readyState < HTMLMediaElement.HAVE_METADATA) return;
+
+      const sourceLine = els.source.value.split(/\r?\n/)[line];
+      const timestamp = sourceLine.match(/^\s*(\S+)/)?.[1];
+      if (!timestamp) return;
+
+      try {
+        const duration = Number.isFinite(els.player.duration) ? els.player.duration : 0;
+        els.player.currentTime = Math.min(duration, Math.max(0, parseTime(timestamp)));
+        updateSeekControls();
+        updatePreview();
+      } catch (_) {}
+    }
+
+    function updateSourceLineFromCaret() {
+      const line = sourceLineAtCaret();
+      if (line === activeSourceLine) return;
+      activeSourceLine = line;
+      seekToSourceLine(line);
     }
 
     function loadVideo(file) {
@@ -1241,13 +1367,26 @@
         setStatus(error.message, "error");
       }
     });
-    els.source.addEventListener("input", rebuild);
-    $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", updateCaptionStyle));
+    els.source.addEventListener("input", () => {
+      activeSourceLine = -1;
+      rebuild();
+      updateSourceLineFromCaret();
+    });
+    els.source.addEventListener("pointerdown", () => {
+      activeSourceLine = -1;
+    });
+    els.source.addEventListener("click", updateSourceLineFromCaret);
+    els.source.addEventListener("focus", updateSourceLineFromCaret);
+    els.source.addEventListener("blur", () => {
+      activeSourceLine = -1;
+    });
+    document.addEventListener("selectionchange", () => {
+      if (document.activeElement === els.source) updateSourceLineFromCaret();
+    });
+    $$("input[name='captionStyle']").forEach(input => input.addEventListener("change", loadSelectedPresetCss));
     els.customCss.addEventListener("input", () => {
       updateCaptionStyle();
-      try {
-        localStorage.setItem(customCssStorageKey, els.customCss.value);
-      } catch (_) {}
+      saveCaptionStyleState();
     });
     els.customCss.addEventListener("keydown", event => {
       if (event.key !== "Tab") return;
@@ -1258,11 +1397,7 @@
       els.customCss.dispatchEvent(new Event("input", { bubbles: true }));
     });
     els.resetCss.addEventListener("click", () => {
-      els.customCss.value = "";
-      updateCaptionStyle();
-      try {
-        localStorage.removeItem(customCssStorageKey);
-      } catch (_) {}
+      loadSelectedPresetCss();
       els.customCss.focus();
     });
     els.player.addEventListener("timeupdate", updatePreview);
