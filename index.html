@@ -249,6 +249,32 @@
       border-color: var(--ring);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
     }
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 32px;
+      margin-bottom: 8px;
+    }
+    .transcribe-status {
+      min-width: 0;
+      color: var(--muted-foreground);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .transcribe-status.error { color: var(--destructive); }
+    .transcribe-status.done { color: var(--success); }
+    .transcribe-button {
+      min-height: 30px;
+      padding: 0 10px;
+      flex: 0 0 auto;
+      font-size: 11px;
+    }
+    .transcribe-mark {
+      font-size: 13px;
+      line-height: 1;
+    }
     .file-name {
       min-width: 0;
       flex: 1;
@@ -529,6 +555,7 @@
       .file-name { order: -1; flex-basis: 100%; }
       .card-footer button { width: 100%; }
       .format-guide { align-items: flex-start; flex-direction: column; }
+      .editor-toolbar { align-items: flex-start; }
       .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
@@ -589,6 +616,13 @@
             <span class="badge" id="noteCount" data-i18n="initialNoteCount">3 notes</span>
           </div>
           <div class="card-content">
+            <div class="editor-toolbar">
+              <span class="transcribe-status" id="transcribeStatus" role="status" aria-live="polite"></span>
+              <button class="secondary transcribe-button" id="transcribe" type="button" disabled>
+                <span class="transcribe-mark" aria-hidden="true">✦</span>
+                <span id="transcribeLabel" data-i18n="transcribeButton">Generate from speech</span>
+              </button>
+            </div>
             <textarea id="source" aria-label="Timestamped notes" data-i18n-aria-label="notesAriaLabel" data-i18n-value="sampleNotes" spellcheck="false">3.2 Button doesn't work.
 4 Please change this.
 6 2 Looks strange.</textarea>
@@ -708,7 +742,19 @@
           addNote: "Add at least one note",
           metadataNotReady: "Video metadata is not ready yet",
           preparingExport: "Preparing export…",
-          downloaded: "Downloaded video-annotated.mp4"
+          downloaded: "Downloaded video-annotated.mp4",
+          transcribeButton: "Generate from speech",
+          transcribingButton: "Generating…",
+          extractingAudio: "Extracting audio… {progress}%",
+          loadingSpeechModel: "Loading speech model… {progress}%",
+          preparingSpeechModel: "Preparing the speech model…",
+          transcribingAudio: "Recognizing speech…",
+          transcriptionDone: "Generated {count} caption lines",
+          noAudioTrack: "This video has no audio track",
+          audioDecodeUnsupported: "This video's audio cannot be decoded by this browser",
+          noSpeechDetected: "No timestamped speech was detected",
+          transcriptionFailed: "Speech recognition failed: {message}",
+          videoChangedDuringTranscription: "The video changed before speech recognition finished"
         },
         ko: {
           eyebrow: "영상 피드백 작업 공간",
@@ -771,7 +817,19 @@
           addNote: "메모를 하나 이상 입력하세요",
           metadataNotReady: "영상 정보를 아직 불러오지 못했습니다",
           preparingExport: "내보내기 준비 중…",
-          downloaded: "video-annotated.mp4 다운로드 완료"
+          downloaded: "video-annotated.mp4 다운로드 완료",
+          transcribeButton: "음성에서 생성",
+          transcribingButton: "생성 중…",
+          extractingAudio: "오디오 추출 중… {progress}%",
+          loadingSpeechModel: "음성 모델 불러오는 중… {progress}%",
+          preparingSpeechModel: "음성 모델 준비 중…",
+          transcribingAudio: "음성 인식 중…",
+          transcriptionDone: "자막 {count}줄을 생성했습니다",
+          noAudioTrack: "영상에 오디오 트랙이 없습니다",
+          audioDecodeUnsupported: "이 영상의 오디오를 현재 브라우저에서 디코딩할 수 없습니다",
+          noSpeechDetected: "타임스탬프가 있는 음성을 인식하지 못했습니다",
+          transcriptionFailed: "음성 인식 실패: {message}",
+          videoChangedDuringTranscription: "음성 인식이 끝나기 전에 영상이 변경되었습니다"
         }
       };
 
@@ -801,6 +859,7 @@
   <script type="module">
     import {
       ALL_FORMATS,
+      AudioBufferSink,
       BlobSource,
       BufferTarget,
       Conversion,
@@ -829,6 +888,9 @@
       fileInput: $("#fileInput"),
       fileName: $("#fileName"),
       source: $("#source"),
+      transcribe: $("#transcribe"),
+      transcribeLabel: $("#transcribeLabel"),
+      transcribeStatus: $("#transcribeStatus"),
       noteCount: $("#noteCount"),
       customCss: $("#customCss"),
       resetCss: $("#resetCss"),
@@ -840,6 +902,8 @@
     let videoUrl = "";
     let annotations = [];
     let activeSourceLine = -1;
+    let isTranscribing = false;
+    let sttWorker = null;
     const fallbackDuration = 3;
     const customCssStorageKey = "video-notes.custom-caption-css";
     const captionBaseCss = `
@@ -974,6 +1038,17 @@
       els.status.className = `status ${tone}`.trim();
     }
 
+    function setTranscribeStatus(message, tone = "") {
+      els.transcribeStatus.textContent = message;
+      els.transcribeStatus.className = `transcribe-status ${tone}`.trim();
+    }
+
+    function updateTranscribeButton() {
+      els.transcribe.disabled = isTranscribing || !videoFile;
+      els.transcribe.setAttribute("aria-busy", String(isTranscribing));
+      els.transcribeLabel.textContent = t(isTranscribing ? "transcribingButton" : "transcribeButton");
+    }
+
     function selectedCaptionStyle() {
       const key = document.querySelector("input[name='captionStyle']:checked")?.value || "classic";
       return captionPresets[key] || captionPresets.classic;
@@ -1015,12 +1090,13 @@
 
     function parseTime(value) {
       const clean = value.trim();
-      const clock = clean.match(/^(?:(\d{1,2}):)?(\d{1,2})(?:\.(\d{1,3}))?$/);
+      if (/^\d+(?:\.\d{1,3})?$/.test(clean)) return Number(clean);
+      const clock = clean.match(/^(\d+):(\d{1,2})(?:\.(\d{1,3}))?$/);
       if (!clock) throw new Error(t("invalidTime", { value }));
-      const minutes = Number(clock[1] || 0);
+      const minutes = Number(clock[1]);
       const seconds = Number(clock[2]);
       const millis = Number((clock[3] || "0").padEnd(3, "0"));
-      if (seconds >= 60 && clock[1]) throw new Error(t("invalidSeconds", { value }));
+      if (seconds >= 60) throw new Error(t("invalidSeconds", { value }));
       return minutes * 60 + seconds + millis / 1000;
     }
 
@@ -1191,7 +1267,168 @@
       els.player.load();
       els.fileName.textContent = file.name;
       els.drop.classList.add("hidden");
+      if (!isTranscribing) setTranscribeStatus("");
+      updateTranscribeButton();
       rebuild();
+    }
+
+    function downmixAndResample(buffer, targetSampleRate = 16000) {
+      const ratio = buffer.sampleRate / targetSampleRate;
+      const outputLength = Math.max(1, Math.round(buffer.length / ratio));
+      const output = new Float32Array(outputLength);
+      const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
+
+      for (let outputIndex = 0; outputIndex < outputLength; outputIndex++) {
+        const sourcePosition = outputIndex * ratio;
+        const leftIndex = Math.min(buffer.length - 1, Math.floor(sourcePosition));
+        const rightIndex = Math.min(buffer.length - 1, leftIndex + 1);
+        const mix = sourcePosition - leftIndex;
+        let sample = 0;
+        for (const channel of channels) {
+          sample += channel[leftIndex] + (channel[rightIndex] - channel[leftIndex]) * mix;
+        }
+        output[outputIndex] = sample / channels.length;
+      }
+
+      return output;
+    }
+
+    async function extractAudio(file, onProgress) {
+      const sampleRate = 16000;
+      const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+
+      try {
+        const track = await input.getPrimaryAudioTrack();
+        if (!track) throw new Error(t("noAudioTrack"));
+        if (!await track.canDecode()) throw new Error(t("audioDecodeUnsupported"));
+
+        const duration = await track.getDurationFromMetadata() || Number(els.player.duration) || 0;
+        const sink = new AudioBufferSink(track);
+        const initialSeconds = Math.min(duration > 0 ? duration : 30, 300);
+        let audio = new Float32Array(Math.max(sampleRate, Math.ceil(initialSeconds * sampleRate)));
+        let outputLength = 0;
+
+        const ensureCapacity = requiredLength => {
+          if (requiredLength <= audio.length) return;
+          const expanded = new Float32Array(Math.max(requiredLength, Math.ceil(audio.length * 1.5)));
+          expanded.set(audio.subarray(0, outputLength));
+          audio = expanded;
+        };
+
+        for await (const wrapped of sink.buffers()) {
+          let data = downmixAndResample(wrapped.buffer, sampleRate);
+          let start = Math.round(wrapped.timestamp * sampleRate);
+          if (start < 0) {
+            data = data.subarray(Math.min(data.length, -start));
+            start = 0;
+          }
+          if (data.length) {
+            ensureCapacity(start + data.length);
+            audio.set(data, start);
+            outputLength = Math.max(outputLength, start + data.length);
+          }
+          const progress = duration > 0
+            ? Math.round(Math.min(1, (wrapped.timestamp + wrapped.duration) / duration) * 100)
+            : 0;
+          onProgress(progress);
+        }
+
+        if (!outputLength) throw new Error(t("noSpeechDetected"));
+        onProgress(100);
+        return { samples: audio, length: outputLength };
+      } finally {
+        input.dispose();
+      }
+    }
+
+    function getSttWorker() {
+      if (!sttWorker) sttWorker = new Worker("/stt-worker.js", { type: "module" });
+      return sttWorker;
+    }
+
+    function transcribeAudio(audio) {
+      const worker = getSttWorker();
+      const requestId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+
+      return new Promise((resolve, reject) => {
+        const cleanup = () => {
+          worker.removeEventListener("message", handleMessage);
+          worker.removeEventListener("error", handleError);
+        };
+        const handleError = event => {
+          cleanup();
+          worker.terminate();
+          sttWorker = null;
+          reject(new Error(t("transcriptionFailed", { message: event.message || "Worker error" })));
+        };
+        const handleMessage = event => {
+          const message = event.data;
+          if (message?.requestId !== requestId) return;
+          if (message.type === "model-loading" || message.type === "model-fallback") {
+            setTranscribeStatus(t("preparingSpeechModel"));
+          } else if (message.type === "model-progress") {
+            setTranscribeStatus(t("loadingSpeechModel", { progress: message.progress }));
+          } else if (message.type === "transcribing") {
+            setTranscribeStatus(t("transcribingAudio"));
+          } else if (message.type === "result") {
+            cleanup();
+            resolve(message.chunks);
+          } else if (message.type === "error") {
+            cleanup();
+            reject(new Error(t("transcriptionFailed", { message: message.message })));
+          }
+        };
+
+        worker.addEventListener("message", handleMessage);
+        worker.addEventListener("error", handleError);
+        worker.postMessage({
+          type: "transcribe",
+          requestId,
+          audio: audio.samples.buffer,
+          audioLength: audio.length
+        }, [audio.samples.buffer]);
+      });
+    }
+
+    function formatSeconds(value) {
+      return Number(value).toFixed(2);
+    }
+
+    function formatTranscription(chunks) {
+      return chunks.flatMap(chunk => {
+        const start = Number(chunk?.timestamp?.[0]);
+        const end = Number(chunk?.timestamp?.[1]);
+        const text = String(chunk?.text || "").replace(/\s+/g, " ").trim();
+        if (!text || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+        return `${formatSeconds(start)} ${formatSeconds(end - start)} ${text}`;
+      });
+    }
+
+    async function generateTranscript() {
+      if (!videoFile || isTranscribing) return;
+      const sourceFile = videoFile;
+      isTranscribing = true;
+      updateTranscribeButton();
+
+      try {
+        const audio = await extractAudio(sourceFile, progress => {
+          setTranscribeStatus(t("extractingAudio", { progress }));
+        });
+        const chunks = await transcribeAudio(audio);
+        if (videoFile !== sourceFile) throw new Error(t("videoChangedDuringTranscription"));
+
+        const lines = formatTranscription(chunks);
+        if (!lines.length) throw new Error(t("noSpeechDetected"));
+        els.source.value = lines.join("\n");
+        els.source.dispatchEvent(new Event("input", { bubbles: true }));
+        setTranscribeStatus(t("transcriptionDone", { count: lines.length }), "done");
+      } catch (error) {
+        console.error(error);
+        setTranscribeStatus(error?.message || String(error), "error");
+      } finally {
+        isTranscribing = false;
+        updateTranscribeButton();
+      }
     }
 
     function escapeXml(value) {
@@ -1367,6 +1604,7 @@
         setStatus(error.message, "error");
       }
     });
+    els.transcribe.addEventListener("click", generateTranscript);
     els.source.addEventListener("input", () => {
       activeSourceLine = -1;
       rebuild();
@@ -1434,6 +1672,7 @@
 
     new ResizeObserver(syncCaptionPreviewFrame).observe(els.dropZone);
     updateCaptionStyle();
+    updateTranscribeButton();
     rebuild();
   </script>
 </body>

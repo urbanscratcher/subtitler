@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY index.html server.js ./
+COPY index.html server.js stt-worker.js ./
 
 ENV HOST=0.0.0.0
 ENV PORT=5175
